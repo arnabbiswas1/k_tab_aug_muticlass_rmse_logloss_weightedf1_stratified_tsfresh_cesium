@@ -1,4 +1,4 @@
-Repository for **Kaggle TPS July 2021 - Air Quality - Time Series - RMSLE - Multiple Targets**
+Repository for **Kaggle TPS August 2021**
 
 ## Steps to execute:
 

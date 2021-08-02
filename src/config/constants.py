@@ -1,4 +1,4 @@
-HOME_DIR = "/opt/vssexclude/personal/kaggle/kaggle_tab_jul"
+HOME_DIR = "/opt/vssexclude/personal/kaggle/k_tab_aug"
 
 RAW_DATA_DIR = f"{HOME_DIR}/data/raw"
 PROCESSED_DATA_DIR = f"{HOME_DIR}/data/processed"
