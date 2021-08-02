@@ -1,0 +1,1 @@
+Directory for storing the raw data in parquet format (after initial processing)
