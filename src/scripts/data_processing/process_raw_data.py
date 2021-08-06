@@ -25,30 +25,28 @@ if __name__ == "__main__":
         sample_submission=True,
     )
 
-    # TARGETS = ["target_carbon_monoxide", "target_benzene", "target_nitrogen_oxides"]
+    TARGET = "loss"
 
-    # logger.info("Mapping the target variable..")
+    target = train_df[TARGET]
 
-    # targets = train_df[TARGETS]
+    combined_df = pd.concat([train_df.drop([TARGET], axis=1), test_df])
 
-    # combind_df = pd.concat([train_df.drop(TARGETS, axis=1), test_df])
+    logger.info("Changing data type of combined  data ..")
+    combined_df = process_data.change_dtype(logger, combined_df, np.int64, np.int32)
+    combined_df = process_data.change_dtype(logger, combined_df, np.float64, np.float32)
 
-    # logger.info("Changing data type of combined  data ..")
-    # combined_df = process_data.change_dtype(logger, combind_df, np.float64, np.float32)
+    logger.info("Changing data type of target data ..")
+    target = target.astype(np.int32)
 
-    # logger.info("Changing data type of target data ..")
-    # targets = process_data.change_dtype(logger, targets, np.float64, np.float32)
+    train_df = combined_df.iloc[0: len(train_df), :]
+    # Make sure to use the name of the target below
+    train_df = train_df.assign(loss=target)
+    test_df = combined_df.iloc[len(train_df):, :]
 
-    # train_df = combined_df.iloc[0: len(train_df), :]
-    # train_df = pd.concat([train_df, targets], axis=1)
-
-    # test_df = combined_df.iloc[len(train_df):, :]
-
-    # logger.info("Changing data type of submission  data ..")
-    # sample_submission_df = process_data.change_dtype(
-    #     logger, sample_submission_df, np.float64, np.float32
-    # )
-
+    logger.info("Changing data type of submission  data ..")
+    sample_submission_df = process_data.change_dtype(
+        logger, sample_submission_df, np.int64, np.int32
+    )
     logger.info(f"Writing processed feather files to {constants.PROCESSED_DATA_DIR}")
     train_df.to_parquet(
         f"{constants.PROCESSED_DATA_DIR}/train_processed.parquet", index=True

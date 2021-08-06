@@ -48,7 +48,9 @@ def plot_desnity_train_test_overlapping(df_train, df_test, feature_name):
     plt.show()
 
 
-def plot_hist_train_test_overlapping(df_train, df_test, feature_name, kind="hist"):
+def plot_hist_train_test_overlapping(
+    df_train, df_test, feature_name, kind="hist", figsize=(10, 10), bins=100
+):
     """
     Plot histogram for a particular feature both for train and test.
 
@@ -57,18 +59,18 @@ def plot_hist_train_test_overlapping(df_train, df_test, feature_name, kind="hist
     """
     df_train[feature_name].plot(
         kind=kind,
-        figsize=(10, 10),
+        figsize=figsize,
         label="train",
-        bins=50,
+        bins=bins,
         alpha=0.4,
         color="red",
         title=f"Train vs Test {feature_name} distribution",
     )
     df_test[feature_name].plot(
         kind="hist",
-        figsize=(10, 10),
+        figsize=figsize,
         label="test",
-        bins=50,
+        bins=bins,
         alpha=0.4,
         color="darkgreen",
     )
@@ -95,46 +97,59 @@ def plot_barh_train_test_side_by_side(
     fig, ((ax1, ax2)) = plt.subplots(1, 2, figsize=(15, 8))
 
     if sort_index:
-        df_train[feature_name].value_counts(
-            normalize=normalize, dropna=False
-        ).sort_index().plot(
-            kind="barh",
-            figsize=(15, 6),
-            ax=ax1,
-            grid=True,
-            title=f"Bar plot for {feature_name} for train",
+        ax1 = (
+            df_train[feature_name]
+            .value_counts(normalize=normalize, dropna=False)
+            .sort_index()
+            .plot(
+                kind="barh",
+                figsize=(15, 6),
+                ax=ax1,
+                grid=True,
+                title=f"Bar plot for {feature_name} for train",
+            )
         )
 
-        df_test[feature_name].value_counts(
-            normalize=normalize, dropna=False
-        ).sort_index().plot(
-            kind="barh",
-            figsize=(15, 6),
-            ax=ax2,
-            grid=True,
-            title=f"Bar plot for {feature_name} for test",
+        ax2 = (
+            df_test[feature_name]
+            .value_counts(normalize=normalize, dropna=False)
+            .sort_index()
+            .plot(
+                kind="barh",
+                figsize=(15, 6),
+                ax=ax2,
+                grid=True,
+                title=f"Bar plot for {feature_name} for test",
+            )
         )
     else:
-        df_train[feature_name].value_counts(
-            normalize=normalize, dropna=False
-        ).sort_values().plot(
-            kind="barh",
-            figsize=(15, 6),
-            ax=ax1,
-            grid=True,
-            title=f"Bar plot for {feature_name} for train",
+        ax1 = (
+            df_train[feature_name]
+            .value_counts(normalize=normalize, dropna=False)
+            .sort_values()
+            .plot(
+                kind="barh",
+                figsize=(15, 6),
+                ax=ax1,
+                grid=True,
+                title=f"Bar plot for {feature_name} for train",
+            )
         )
 
-        df_test[feature_name].value_counts(
-            normalize=normalize, dropna=False
-        ).sort_values().plot(
-            kind="barh",
-            figsize=(15, 6),
-            ax=ax2,
-            grid=True,
-            title=f"Bar plot for {feature_name} for test",
+        ax2 = (
+            df_test[feature_name]
+            .value_counts(normalize=normalize, dropna=False)
+            .sort_values()
+            .plot(
+                kind="barh",
+                figsize=(15, 6),
+                ax=ax2,
+                grid=True,
+                title=f"Bar plot for {feature_name} for test",
+            )
         )
-
+    ax1.invert_yaxis()
+    ax2.invert_yaxis()
     plt.legend()
     plt.show()
 
@@ -203,18 +218,30 @@ def plot_barh(
 
     """
     if sort_index:
-        df[feature_name].value_counts(
-            normalize=normalize, dropna=False
-        ).sort_index().plot(
-            kind=kind, figsize=figsize, grid=True, title=f"Bar plot for {feature_name}"
+        ax = (
+            df[feature_name]
+            .value_counts(normalize=normalize, dropna=False)
+            .sort_index()
+            .plot(
+                kind=kind,
+                figsize=figsize,
+                grid=True,
+                title=f"Bar plot for {feature_name}",
+            )
         )
     else:
-        df[feature_name].value_counts(
-            normalize=normalize, dropna=False
-        ).sort_values().plot(
-            kind=kind, figsize=figsize, grid=True, title=f"Bar plot for {feature_name}"
+        ax = (
+            df[feature_name]
+            .value_counts(normalize=normalize, dropna=False)
+            .sort_values(ascending=True)
+            .plot(
+                kind=kind,
+                figsize=figsize,
+                grid=True,
+                title=f"Bar plot for {feature_name}",
+            )
         )
-
+    ax.invert_yaxis()
     plt.legend()
     plt.show()
 
@@ -399,7 +426,7 @@ def plot_multiple_seasonalities(df, feature_name, figsize=(20, 6)):
 
     for name, period in zip(period_names, periods):
         plot_seasonality(
-            df.set_index("date_time")[0: period * 3],
+            df.set_index("date_time")[0 : period * 3],
             feature=feature_name,
             freq=period,
             freq_type=name,

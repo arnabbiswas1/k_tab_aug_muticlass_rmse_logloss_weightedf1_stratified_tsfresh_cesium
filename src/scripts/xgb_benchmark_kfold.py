@@ -1,12 +1,12 @@
 """
-Cat Benchamrk with StratifiedKFold
+XGB Benchamrk with StratifiedKFold
 """
 
 import os
 from datetime import datetime
 from timeit import default_timer as timer
 
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import KFold
 
 import src.common as common
 import src.config.constants as constants
@@ -22,44 +22,43 @@ if __name__ == "__main__":
     MODEL_NAME = os.path.basename(__file__).split(".")[0]
 
     SEED = 42
-    EXP_DETAILS = "Cat Benchamrk with StratifiedKFold"
+    EXP_DETAILS = "XGB Benchamrk with KFold"
     IS_TEST = False
     PLOT_FEATURE_IMPORTANCE = False
 
     TARGET = "loss"
 
-    MODEL_TYPE = "cat"
-    OBJECTIVE = "RMSE"
-    CUSTOM_METRIC = "RMSE"
-    EVAL_METRIC = "RMSE"
-    N_ESTIMATORS = 1000
+    MODEL_TYPE = "xgb"
+    OBJECTIVE = "reg:squarederror"
+    NUM_CLASSES = 9
+    METRIC = "rmse"
+    BOOSTING_TYPE = "gbtree"
+    VERBOSE = 100
+    N_THREADS = -1
+    NUM_LEAVES = 31
+    MAX_DEPTH = 6
+    N_ESTIMATORS = 10000
     LEARNING_RATE = 0.1
     EARLY_STOPPING_ROUNDS = 100
-    USE_BEST_MODEL = True
-    MAX_DEPTH = 16
-    MAX_BIN = 254
-    N_THREADS = -1
-    BOOSTING_TYPE = "Plain"
-    NUM_LEAVES = 31
-    VERBOSE_EVAL = 100
-    NUM_CLASSES = 9
 
-    cat_params = {
-        "objective": OBJECTIVE,  # Alias loss_function
-        "custom_metric": CUSTOM_METRIC,
-        "eval_metric": CUSTOM_METRIC,
-        "n_estimators": N_ESTIMATORS,
+    xgb_params = {
+        # Learning task parameters
+        "objective": OBJECTIVE,
+        "eval_metric": METRIC,
+        "seed": SEED,
+        # Type of the booster
+        "booster": BOOSTING_TYPE,
+        # parameters for tree booster
         "learning_rate": LEARNING_RATE,
-        "random_seed": SEED,
-        "early_stopping_rounds": EARLY_STOPPING_ROUNDS,
-        "use_best_model": USE_BEST_MODEL,
         "max_depth": MAX_DEPTH,
-        "max_bin": MAX_BIN,
-        "thread_count": N_THREADS,
-        "boosting_type": BOOSTING_TYPE,
-        "verbose_eval": VERBOSE_EVAL,
-        "num_leaves": NUM_LEAVES,
+        "max_leaves": NUM_LEAVES,
+        "max_bin": 256,
+        # General parameters
+        "nthread": -1,
+        "verbosity": 2,
+        "validate_parameters": True,
     }
+
     LOGGER_NAME = "sub_1"
     logger = common.get_logger(LOGGER_NAME, MODEL_NAME, RUN_ID, constants.LOG_DIR)
     common.set_seed(SEED)
@@ -92,22 +91,24 @@ if __name__ == "__main__":
     )
 
     predictors = list(train_X.columns)
-    sk = StratifiedKFold(n_splits=10, shuffle=False)
+    sk = KFold(n_splits=10, shuffle=True)
 
     common.update_tracking(RUN_ID, "no_of_features", len(predictors), is_integer=True)
-    common.update_tracking(RUN_ID, "cv_method", "StratifiedKFold")
+    common.update_tracking(RUN_ID, "cv_method", "KFold")
 
-    results_dict = model.cat_train_validate_on_cv(
+    results_dict = model.xgb_train_validate_on_cv(
         logger=logger,
         run_id=RUN_ID,
         train_X=train_X,
         train_Y=train_Y,
         test_X=test_X,
-        num_classes=None,
+        num_class=None,
         kf=sk,
         features=predictors,
-        params=cat_params,
-        cat_features=None,
+        params=xgb_params,
+        n_estimators=N_ESTIMATORS,
+        early_stopping_rounds=EARLY_STOPPING_ROUNDS,
+        verbose_eval=100,
         is_test=IS_TEST,
     )
 

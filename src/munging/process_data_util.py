@@ -22,14 +22,14 @@ def read_raw_data(
     sample_submission_df = None
 
     if train:
-        train_df = pd.read_csv(f"{data_dir}/train.csv", parse_dates=["date_time"])
+        train_df = pd.read_csv(f"{data_dir}/train.csv", index_col=index_col_name)
         logger.info(f"Shape of train_df : {train_df.shape}")
     if test:
-        test_df = pd.read_csv(f"{data_dir}/test.csv", parse_dates=["date_time"])
+        test_df = pd.read_csv(f"{data_dir}/test.csv", index_col=index_col_name)
         logger.info(f"Shape of test_df : {test_df.shape}")
     if sample_submission:
         sample_submission_df = pd.read_csv(
-            f"{data_dir}/sample_submission.csv", parse_dates=["date_time"]
+            f"{data_dir}/sample_submission.csv", index_col=index_col_name
         )
         logger.info(f"Shape of sample_submission_df : {sample_submission_df.shape}")
 

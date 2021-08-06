@@ -26,18 +26,18 @@ if __name__ == "__main__":
     IS_TEST = False
     PLOT_FEATURE_IMPORTANCE = False
 
-    TARGET = "target"
+    TARGET = "loss"
 
     MODEL_TYPE = "xgb"
-    OBJECTIVE = "multi:softprob"
+    OBJECTIVE = "reg:squarederror"
     NUM_CLASSES = 9
-    METRIC = "mlogloss"
+    METRIC = "rmse"
     BOOSTING_TYPE = "gbtree"
     VERBOSE = 100
     N_THREADS = -1
     NUM_LEAVES = 31
     MAX_DEPTH = 6
-    N_ESTIMATORS = 1000
+    N_ESTIMATORS = 10000
     LEARNING_RATE = 0.1
     EARLY_STOPPING_ROUNDS = 100
 
@@ -46,7 +46,6 @@ if __name__ == "__main__":
         "objective": OBJECTIVE,
         "eval_metric": METRIC,
         "seed": SEED,
-        "num_class": NUM_CLASSES,
         # Type of the booster
         "booster": BOOSTING_TYPE,
         # parameters for tree booster
@@ -92,7 +91,7 @@ if __name__ == "__main__":
     )
 
     predictors = list(train_X.columns)
-    sk = StratifiedKFold(n_splits=10, shuffle=False)
+    sk = StratifiedKFold(n_splits=10, shuffle=True)
 
     common.update_tracking(RUN_ID, "no_of_features", len(predictors), is_integer=True)
     common.update_tracking(RUN_ID, "cv_method", "StratifiedKFold")
@@ -103,7 +102,7 @@ if __name__ == "__main__":
         train_X=train_X,
         train_Y=train_Y,
         test_X=test_X,
-        num_class=NUM_CLASSES,
+        num_class=None,
         kf=sk,
         features=predictors,
         params=xgb_params,

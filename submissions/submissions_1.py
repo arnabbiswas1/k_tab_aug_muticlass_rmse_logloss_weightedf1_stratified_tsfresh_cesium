@@ -2,11 +2,11 @@ import os
 
 import pandas as pd
 
-COMPETITION_NAME = "tabular-playground-series-jul-2021"
+COMPETITION_NAME = "tabular-playground-series-aug-2021"
 
 SUBMISSION_DIR = "."
-SUBMISSION_FILE = "sub_lgb_benchmark_0720_1255_0.34092.csv"
-SUBMISSION_MESSAGE = '"Benchamrk with LGB with no date"'
+SUBMISSION_FILE = "sub_lgb_benchmark_kfold_0803_1103_7.85957.csv"
+SUBMISSION_MESSAGE = '"Benchamrk with LGB with KFold (10)"'
 
 df = pd.read_csv(f"{SUBMISSION_DIR}/{SUBMISSION_FILE}")
 print(df.head())

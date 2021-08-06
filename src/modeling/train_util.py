@@ -41,7 +41,7 @@ def rmsle(y, y_hat):
     return np.sqrt(np.mean(np.power(np.log1p(y_hat) - np.log1p(y), 2)))
 
 
-def _calculate_perf_metric(y, y_hat):
+def _calculate_perf_metric(metric_name, y, y_hat):
     """Returns the performance metrics
 
        Args:
@@ -51,7 +51,19 @@ def _calculate_perf_metric(y, y_hat):
        Returns:
            RMSLE computed
     """
-    score = rmsle(y, y_hat)
+    score = None
+    if metric_name == "rmse":
+        score = rmse(y, y_hat)
+    if metric_name == "rmsle":
+        score = rmsle(y, y_hat)
+    elif metric_name == "roc_auc":
+        score = roc_auc(y, y_hat)
+    elif metric_name == "log_loss":
+        score = log_loss(y, y_hat)
+    else:
+        raise ValueError(
+            "Invalid value for metric_name. Only rmse, rmsle, roc_auc, log_loss allowed"
+        )
     return score
 
 
@@ -622,6 +634,7 @@ def _evaluate_and_log(
     train_Y,
     y_oof,
     y_predicted,
+    metric,
     n_folds,
     result_dict,
     cv_scores,
@@ -630,7 +643,7 @@ def _evaluate_and_log(
 ):
     y_predicted /= n_folds
 
-    oof_score = round(_calculate_perf_metric(train_Y, y_oof), 5)
+    oof_score = round(_calculate_perf_metric(metric, train_Y, y_oof), 5)
     avg_cv_scores = round(sum(cv_scores) / len(cv_scores), 5)
     std_cv_scores = round(np.array(cv_scores).std(), 5)
 
@@ -688,6 +701,7 @@ def xgb_train_validate_on_cv(
     train_X,
     train_Y,
     test_X,
+    metric,
     num_class: int,
     kf,
     features,
@@ -696,14 +710,20 @@ def xgb_train_validate_on_cv(
     early_stopping_rounds=100,
     verbose_eval=100,
     is_test=False,
+    log_target=False,
 ):
     """Train a XGBoost model, validate using cross validation. If `test_X` has
     a valid value, creates a new model with number of best iteration found during
     holdout phase using training as well as validation data.
     """
+    if num_class:
+        # This should be true for multiclass classification problems
+        y_oof = np.zeros(shape=(len(train_X), num_class))
+        y_predicted = np.zeros(shape=(len(test_X), num_class))
+    else:
+        y_oof = np.zeros(shape=(len(train_X)))
+        y_predicted = np.zeros(shape=(len(test_X)))
 
-    y_oof = np.zeros(shape=(len(train_X)))
-    y_predicted = np.zeros(shape=(len(test_X)))
     cv_scores = []
     result_dict = {}
     feature_importance = pd.DataFrame()
@@ -719,10 +739,18 @@ def xgb_train_validate_on_cv(
             train_X, train_Y, train_index, validation_index
         )
 
-        xgb_train = xgb.DMatrix(data=X_train, label=y_train, feature_names=features)
-        xgb_eval = xgb.DMatrix(
-            data=X_validation, label=y_validation, feature_names=features
-        )
+        if log_target:
+            xgb_train = xgb.DMatrix(
+                data=X_train, label=np.log1p(y_train), feature_names=features
+            )
+            xgb_eval = xgb.DMatrix(
+                data=X_validation, label=np.log1p(y_validation), feature_names=features
+            )
+        else:
+            xgb_train = xgb.DMatrix(data=X_train, label=y_train, feature_names=features)
+            xgb_eval = xgb.DMatrix(
+                data=X_validation, label=y_validation, feature_names=features
+            )
 
         watchlist = [(xgb_train, "train"), (xgb_eval, "valid_data")]
         model = xgb.train(
@@ -737,19 +765,36 @@ def xgb_train_validate_on_cv(
         del xgb_train, xgb_eval, train_index, X_train, y_train
         gc.collect()
 
-        y_oof[validation_index] = model.predict(
-            xgb.DMatrix(X_validation, feature_names=features),
-            ntree_limit=model.best_ntree_limit,
-        )
+        if log_target:
+            y_oof[validation_index] = np.expm1(
+                model.predict(
+                    xgb.DMatrix(X_validation, feature_names=features),
+                    ntree_limit=model.best_ntree_limit,
+                )
+            )
+        else:
+            y_oof[validation_index] = model.predict(
+                xgb.DMatrix(X_validation, feature_names=features),
+                ntree_limit=model.best_ntree_limit,
+            )
         if test_X is not None:
             xgb_test = xgb.DMatrix(test_X.values, feature_names=features)
-            y_predicted += model.predict(xgb_test, ntree_limit=model.best_ntree_limit)
+            if log_target:
+                y_predicted += np.expm1(
+                    model.predict(xgb_test, ntree_limit=model.best_ntree_limit)
+                )
+            else:
+                y_predicted += model.predict(
+                    xgb_test, ntree_limit=model.best_ntree_limit
+                )
 
         best_iteration = model.best_ntree_limit
         best_iterations.append(best_iteration)
         logger.info(f"Best number of iterations for fold {fold} is: {best_iteration}")
 
-        cv_oof_score = _calculate_perf_metric(y_validation, y_oof[validation_index])
+        cv_oof_score = _calculate_perf_metric(
+            metric, y_validation, y_oof[validation_index]
+        )
         cv_scores.append(cv_oof_score)
         logger.info(f"CV OOF Score for fold {fold} is {cv_oof_score}")
 
@@ -768,9 +813,9 @@ def xgb_train_validate_on_cv(
             fold,
         )
 
-        util.update_tracking(
-            run_id, "metric_fold_{}".format(fold), cv_oof_score, is_integer=False
-        )
+        # util.update_tracking(
+        #     run_id, "metric_fold_{}".format(fold), cv_oof_score, is_integer=False
+        # )
 
     result_dict = _evaluate_and_log(
         logger,
@@ -778,6 +823,7 @@ def xgb_train_validate_on_cv(
         train_Y,
         y_oof,
         y_predicted,
+        metric,
         n_folds,
         result_dict,
         cv_scores,
@@ -801,6 +847,7 @@ def lgb_train_validate_on_cv(
     train_X,
     train_Y,
     test_X,
+    metric,
     num_class,
     kf,
     features,
@@ -810,7 +857,7 @@ def lgb_train_validate_on_cv(
     cat_features="auto",
     verbose_eval=100,
     is_test=False,
-    label_name="",
+    log_target=False,
 ):
     """Train a LightGBM model, validate using cross validation. If `test_X` has
     a valid value, creates a new model with number of best iteration found during
@@ -819,8 +866,14 @@ def lgb_train_validate_on_cv(
     startify_by_labels: Used as the label for StartifiedKFold on top of continous
     variables
     """
-    y_oof = np.zeros(shape=(len(train_X)))
-    y_predicted = np.zeros(shape=(len(test_X)))
+    if num_class:
+        # This should be true for multiclass classification problems
+        y_oof = np.zeros(shape=(len(train_X), num_class))
+        y_predicted = np.zeros(shape=(len(test_X), num_class))
+    else:
+        y_oof = np.zeros(shape=(len(train_X)))
+        y_predicted = np.zeros(shape=(len(test_X)))
+
     cv_scores = []
     result_dict = {}
     feature_importance = pd.DataFrame()
@@ -836,10 +889,14 @@ def lgb_train_validate_on_cv(
             train_X, train_Y, train_index, validation_index
         )
 
-        lgb_train = lgb.Dataset(X_train, np.log1p(y_train))
-        lgb_eval = lgb.Dataset(
-            X_validation, np.log1p(y_validation), reference=lgb_train
-        )
+        if log_target:
+            lgb_train = lgb.Dataset(X_train, np.log1p(y_train))
+            lgb_eval = lgb.Dataset(
+                X_validation, np.log1p(y_validation), reference=lgb_train
+            )
+        else:
+            lgb_train = lgb.Dataset(X_train, y_train)
+            lgb_eval = lgb.Dataset(X_validation, y_validation, reference=lgb_train)
 
         model = lgb.train(
             params,
@@ -855,18 +912,32 @@ def lgb_train_validate_on_cv(
         del lgb_train, lgb_eval, train_index, X_train, y_train
         gc.collect()
 
-        y_oof[validation_index] = np.expm1(
-            model.predict(X_validation, num_iteration=model.best_iteration)
-        )
-        if test_X is not None:
-            y_predicted += np.expm1(
-                model.predict(test_X.values, num_iteration=model.best_iteration)
+        if log_target:
+            y_oof[validation_index] = np.expm1(
+                model.predict(X_validation, num_iteration=model.best_iteration)
             )
+        else:
+            y_oof[validation_index] = model.predict(
+                X_validation, num_iteration=model.best_iteration
+            )
+
+        if test_X is not None:
+            if log_target:
+                y_predicted += np.expm1(
+                    model.predict(test_X.values, num_iteration=model.best_iteration)
+                )
+            else:
+                y_predicted += model.predict(
+                    test_X.values, num_iteration=model.best_iteration
+                )
+
         best_iteration = model.best_iteration
         best_iterations.append(best_iteration)
         logger.info(f"Best number of iterations for fold {fold} is: {best_iteration}")
 
-        cv_oof_score = _calculate_perf_metric(y_validation, y_oof[validation_index])
+        cv_oof_score = _calculate_perf_metric(
+            metric, y_validation, y_oof[validation_index]
+        )
         cv_scores.append(cv_oof_score)
         logger.info(f"CV OOF Score for fold {fold} is {cv_oof_score}")
 
@@ -888,11 +959,11 @@ def lgb_train_validate_on_cv(
         train_Y,
         y_oof,
         y_predicted,
+        metric,
         n_folds,
         result_dict,
         cv_scores,
         best_iterations,
-        label_name,
     )
 
     del y_oof
@@ -1030,12 +1101,14 @@ def cat_train_validate_on_cv(
     train_X,
     train_Y,
     test_X,
-    num_classes,
+    metric,
+    num_class,
     kf,
     features,
     params={},
     cat_features=None,
     is_test=False,
+    log_target=False,
 ):
     """Train a CatBoost model, validate using cross validation. If `test_X` has
     a valid value, creates a new model with number of best iteration found during
@@ -1043,9 +1116,14 @@ def cat_train_validate_on_cv(
 
     Note: For CatBoost, categorical features need to be in String or Category data type.
     """
+    if num_class:
+        # This should be true for multiclass classification problems
+        y_oof = np.zeros(shape=(len(train_X), num_class))
+        y_predicted = np.zeros(shape=(len(test_X), num_class))
+    else:
+        y_oof = np.zeros(shape=(len(train_X)))
+        y_predicted = np.zeros(shape=(len(test_X)))
 
-    y_oof = np.zeros(shape=(len(train_X), num_classes))
-    y_predicted = np.zeros(shape=(len(test_X), num_classes))
     cv_scores = []
     result_dict = {}
     feature_importance = pd.DataFrame()
@@ -1061,9 +1139,20 @@ def cat_train_validate_on_cv(
             train_X, train_Y, train_index, validation_index
         )
 
-        # feature_names accepts only list
-        cat_train = Pool(data=X_train, label=y_train, feature_names=features,)
-        cat_eval = Pool(data=X_validation, label=y_validation, feature_names=features,)
+        if log_target:
+            # feature_names accepts only list
+            cat_train = Pool(
+                data=X_train, label=np.log1p(y_train), feature_names=features,
+            )
+            cat_eval = Pool(
+                data=X_validation, label=np.log1p(y_validation), feature_names=features,
+            )
+        else:
+            # feature_names accepts only list
+            cat_train = Pool(data=X_train, label=y_train, feature_names=features,)
+            cat_eval = Pool(
+                data=X_validation, label=y_validation, feature_names=features,
+            )
 
         model = CatBoost(params=params)
         # List of categorical features have already been passed as a part of Pool
@@ -1073,12 +1162,16 @@ def cat_train_validate_on_cv(
         del train_index, X_train, y_train, cat_train
         gc.collect()
 
-        y_oof[validation_index] = model.predict(cat_eval)
+        if log_target:
+            y_oof[validation_index] = np.expm1(model.predict(cat_eval))
+        else:
+            y_oof[validation_index] = model.predict(cat_eval)
+
         if test_X is not None:
             cat_test = Pool(
                 data=test_X, feature_names=features, cat_features=cat_features
             )
-            y_predicted += model.predict(cat_test)
+            y_predicted += np.expm1(model.predict(cat_test))
 
         del cat_eval, cat_test
 
@@ -1086,7 +1179,9 @@ def cat_train_validate_on_cv(
         best_iterations.append(best_iteration)
         logger.info(f"Best number of iterations for fold {fold} is: {best_iteration}")
 
-        cv_oof_score = _calculate_perf_metric(y_validation, y_oof[validation_index])
+        cv_oof_score = _calculate_perf_metric(
+            metric, y_validation, y_oof[validation_index]
+        )
         cv_scores.append(cv_oof_score)
         logger.info(f"CV OOF Score for fold {fold} is {cv_oof_score}")
 
@@ -1098,13 +1193,13 @@ def cat_train_validate_on_cv(
             feature_importance, features, feature_importance_on_fold, fold
         )
 
-        util.update_tracking(
-            run_id,
-            "metric_fold_{}".format(fold),
-            cv_oof_score,
-            is_integer=False,
-            no_of_digits=5,
-        )
+        # util.update_tracking(
+        #     run_id,
+        #     "metric_fold_{}".format(fold),
+        #     cv_oof_score,
+        #     is_integer=False,
+        #     no_of_digits=5,
+        # )
 
     result_dict = _evaluate_and_log(
         logger,
@@ -1112,6 +1207,7 @@ def cat_train_validate_on_cv(
         train_Y,
         y_oof,
         y_predicted,
+        metric,
         n_folds,
         result_dict,
         cv_scores,

@@ -179,7 +179,6 @@ def save_artifacts(
     oof_dir,
     fi_dir,
     fi_fig_dir,
-    label_name="",
 ):
     """
     Save the submission, OOF predictions, feature importance values
@@ -188,14 +187,14 @@ def save_artifacts(
     score = result_dict["avg_cv_scores"]
 
     if is_test is False:
-        # # Save submission file
-        # submission_df[submission_df.columns] = result_dict["prediction"]
-        # save_file(
-        #     logger,
-        #     submission_df,
-        #     sub_dir,
-        #     f"sub_{label_name}_{model_number}_{run_id}_{score:.5f}.csv",
-        # )
+        # Save submission file
+        submission_df[submission_df.columns] = result_dict["prediction"]
+        save_file(
+            logger,
+            submission_df,
+            sub_dir,
+            f"sub_{model_number}_{run_id}_{score:.5f}.csv",
+        )
 
         # Save OOF
         if train_index is not None:
@@ -204,7 +203,7 @@ def save_artifacts(
                 logger,
                 oof_df,
                 oof_dir,
-                f"oof_{label_name}_{model_number}_{run_id}_{score:.5f}.csv",
+                f"oof_{model_number}_{run_id}_{score:.5f}.csv",
             )
 
     if is_plot_fi is True:
@@ -214,7 +213,7 @@ def save_artifacts(
             logger,
             feature_importance_df,
             fi_dir,
-            f"fi_{label_name}_{model_number}_{run_id}_{score:.5f}.csv",
+            f"fi_{model_number}_{run_id}_{score:.5f}.csv",
         )
 
         best_features_df = result_dict["best_features"]
@@ -222,7 +221,7 @@ def save_artifacts(
             logger,
             best_features_df,
             fi_dir,
-            f"bf_{label_name}_{model_number}_{run_id}_{score:.5f}.csv",
+            f"bf_{model_number}_{run_id}_{score:.5f}.csv",
         )
 
         # Save the plot for best features
@@ -230,7 +229,7 @@ def save_artifacts(
         viz.save_feature_importance_as_fig(
             best_features,
             fi_fig_dir,
-            f"fi_{label_name}_{model_number}_{run_id}_{score:.5f}.png",
+            f"fi_{model_number}_{run_id}_{score:.5f}.png",
         )
 
 

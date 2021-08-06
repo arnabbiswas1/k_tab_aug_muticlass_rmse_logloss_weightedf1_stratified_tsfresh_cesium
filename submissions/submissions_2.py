@@ -2,13 +2,14 @@ import os
 
 import pandas as pd
 
-COMPETITION_NAME = "tabular-playground-series-jul-2021"
+COMPETITION_NAME = "tabular-playground-series-aug-2021"
 
 SUBMISSION_DIR = "."
-SUBMISSION_FILE = "sub_lgb_benchmark_log_target_0720_1522_0.34622.csv"
-SUBMISSION_MESSAGE = '"LGB Benchamrk without date log1p of targets"'
+SUBMISSION_FILE = "sub_lgb_benchmark_StratifiedKFold_0803_1109_7.85789.csv"
+SUBMISSION_MESSAGE = '"Benchamrk with LGB with StratifiedKFold (10)"'
 
 df = pd.read_csv(f"{SUBMISSION_DIR}/{SUBMISSION_FILE}")
+df.loss = df.loss.round()
 print(df.head())
 
 submission_string = f"kaggle competitions submit {COMPETITION_NAME} -f {SUBMISSION_DIR}/{SUBMISSION_FILE} -m {SUBMISSION_MESSAGE}"
