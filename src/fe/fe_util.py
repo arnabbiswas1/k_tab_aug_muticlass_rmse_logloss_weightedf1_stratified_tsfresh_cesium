@@ -93,7 +93,7 @@ def create_ploynomial_features(logger, source_df, target_df, features, degree=2)
     # Create a DF from the generated features
     df_transformed = pd.DataFrame(ploy_features, columns=feature_names)
     # Drop the first few features sinces those are the original ones
-    df_transformed = df_transformed.iloc[:, len(features) :]
+    df_transformed = df_transformed.iloc[:, len(features):]
     # Append to the target DF
     target_df = pd.concat([target_df, df_transformed], axis=1)
     return target_df

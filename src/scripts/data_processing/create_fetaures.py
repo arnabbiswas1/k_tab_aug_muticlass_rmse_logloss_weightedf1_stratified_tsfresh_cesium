@@ -4,14 +4,15 @@ import numpy as np
 import src.munging as process_data
 import src.common as common
 import src.config.constants as constants
-import src.ts as ts
+import src.fe as fe
 
 
-if __name__ == "__main__":
-    logger = common.get_logger("fe")
-    logger.info("Starting to engineer features")
+def main():
+    # Create a Stream only logger
+    logger = common.get_logger("generate_features")
+    logger.info("Starting to generate features")
 
-    train_df, test_df, sample_submission_df = process_data.read_processed_data(
+    train_df, test_df, _ = process_data.read_processed_data(
         logger,
         constants.PROCESSED_DATA_DIR,
         train=True,
@@ -19,50 +20,65 @@ if __name__ == "__main__":
         sample_submission=True,
     )
 
-    TARGETS = ["target_carbon_monoxide", "target_benzene", "target_nitrogen_oxides"]
+    combined_df = pd.concat([train_df.drop("loss", axis=1), test_df])
 
-    targets = train_df[TARGETS]
-    combined_df = pd.concat([train_df.drop(TARGETS, axis=1), test_df])
+    cat_within_2 = ["f1", "f86", "f55"]
+    cat_within_9 = ["f27"]
+    cat_within_17 = ["f12", "f9", "f79", "f64", "f34", "f26", "f30"]
+
+    cat_features = cat_within_2 + cat_within_9 + cat_within_17
+    cont_features = list(
+        combined_df.columns.drop(cat_features)
+    )
+
+    logger.info(f"Categorical features {cat_features}")
+    logger.info(f"Continous features {cont_features}")
 
     features_df = pd.DataFrame()
-    logger.info("Cretaing date related features")
-    features_df = ts.create_date_features(
-        source_df=combined_df, target_df=features_df, feature_name="date_time"
-    )
-    features_df = ts.create_us_season(
-        source_df=combined_df, target_df=features_df, feature_name="date_time"
+
+    features_df = fe.create_frequency_encoding(
+        logger, combined_df, features_df, cat_features
     )
 
-    features_df = ts.create_part_of_day(
-        source_df=combined_df, target_df=features_df, feature_name="date_time"
+    features_df = fe.create_categorical_feature_interaction(
+        logger, combined_df, features_df, cat_within_2 + cat_within_9
     )
 
-    # Saturated water vapour density
-    features_df["s_wvd"] = (combined_df["absolute_humidity"] * 100) / combined_df[
-        "relative_humidity"
-    ]
+    # This is going to be huge. Dropping for now
+    # features_df = fe.create_continuous_feature_interaction(
+    #     logger, combined_df, features_df, cont_feature
+    # )
 
-    # https://www.calcunation.com/calculator/dew-point.php
-    features_df["dew_point"] = (
-        243.12
-        * (
-            np.log(combined_df["relative_humidity"] * 0.01)
-            + (17.62 * combined_df["deg_C"]) / (243.12 + combined_df["deg_C"])
-        )
-        / (
-            17.62
-            - (
-                np.log(combined_df["relative_humidity"] * 0.01)
-                + 17.62 * combined_df["deg_C"] / (243.12 + combined_df["deg_C"])
-            )
-        )
+    features_df = fe.create_power_features(
+        logger, combined_df, features_df, cont_features
     )
 
-    features_df["partial_pressure"] = (
-        ((237.7 + combined_df["deg_C"]) * 286.8) * combined_df["absolute_humidity"]
-    ) / 100000
+    features_df = fe.create_row_wise_stat_features(
+        logger, combined_df, features_df, cont_features
+    )
 
-    logger.info(f"Writing features to parquet file of shape {features_df.shape}")
+    features_df = fe.bin_cut_cont_features(
+        logger, combined_df, features_df, cont_features, bin_size=10
+    )
+
+    # This is going to be huge. Dropping for now
+    # features_df = fe.create_ploynomial_features(
+    #     logger, combined_df, features_df, cont_feature
+    # )
+
+    logger.info(f"Shape of the generated features {features_df.shape}")
+    logger.info(f"Name of the features generated {list(features_df.columns)}")
+
+    logger.info("Changing data type ..")
+    combined_df = process_data.change_dtype(logger, features_df, np.int64, np.int32)
+    combined_df = process_data.change_dtype(logger, features_df, np.float64, np.float32)
+    combined_df = process_data.change_dtype(logger, features_df, np.object, "category")
+
+    logger.info(f"Writing generated features to {constants.FEATURES_DATA_DIR}")
     features_df.to_parquet(
-        path=f"{constants.FEATURES_DATA_DIR}/features.parquet", index=False
+        f"{constants.FEATURES_DATA_DIR}/generated_features.parquet", index=True
     )
+
+
+if __name__ == "__main__":
+    main()

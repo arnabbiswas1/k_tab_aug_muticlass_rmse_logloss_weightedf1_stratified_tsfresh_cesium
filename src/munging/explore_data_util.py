@@ -8,8 +8,13 @@ __all__ = [
     "count_unique_values",
     "do_value_counts",
     "check_id",
-    "get_fetaure_names",
-    "check_value_counts_across_train_test"
+    "get_feature_names",
+    "check_value_counts_across_train_test",
+    "get_freq_encoding_feature_names",
+    "get_bin_feature_names",
+    "get_power_feature_names",
+    "get_row_wise_stat_feature_names",
+    "get_cat_interaction_features"
 ]
 
 
@@ -47,7 +52,7 @@ def check_id(df, column_name, data_set_name):
     plt.show()
 
 
-def get_fetaure_names(df, feature_name_substring):
+def get_feature_names(df, feature_name_substring):
     """
     Returns the list of features with name matching 'feature_name_substring'
     """
@@ -80,3 +85,45 @@ def check_value_counts_across_train_test(
     count_df = pd.concat([train_counts, test_counts], axis=1).reset_index(drop=True)
     count_df.columns = [feature_name, "train", "test"]
     return count_df
+
+
+def get_freq_encoding_feature_names(df):
+    return get_feature_names(df, "freq")
+
+
+def get_power_feature_names(df):
+    power_features = []
+    power_feature_keys = ["_square", "_cube", "_fourth", "_cp", "_cnp"]
+    for name in df.columns:
+        for key in power_feature_keys:
+            if key in name:
+                power_features.append(name)
+    return power_features
+
+
+def get_row_wise_stat_feature_names():
+    return [
+        "max",
+        "min",
+        "sum",
+        "mean",
+        "std",
+        "skew",
+        "kurt",
+        "med",
+        "ptp",
+        "percentile_10",
+        "percentile_60",
+        "percentile_90",
+        "quantile_5",
+        "quantile_95",
+        "quantile_99",
+    ]
+
+
+def get_bin_feature_names(df, bin_size=10):
+    return get_feature_names(df, f"cut_bin_{bin_size}")
+
+
+def get_cat_interaction_features():
+    return ["f1_f86", "f1_f55",	"f1_f27", "f86_f55", "f86_f27", "f55_f27"]

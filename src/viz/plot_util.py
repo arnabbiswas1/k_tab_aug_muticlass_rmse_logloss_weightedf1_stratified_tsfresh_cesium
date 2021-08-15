@@ -1,9 +1,16 @@
+from typing import Tuple
+
+import matplotlib
+from matplotlib.cm import get_cmap
 import matplotlib.pyplot as plt
+import pandas as pd
 import numpy as np
 import seaborn as sns
 import statsmodels.tsa.api as tsa
 
 import src.munging as munging
+
+matplotlib.style.use("dark_background")
 
 
 __all__ = [
@@ -12,10 +19,12 @@ __all__ = [
     "plot_barh_train_test_side_by_side",
     "plot_line_train_test_overlapping",
     "plot_hist",
+    "plot_vanilla_barh",
     "plot_barh",
     "plot_boxh",
     "plot_line",
     "plot_boxh_groupby",
+    "plot_boxh_train_test_overlapping",
     "plot_hist_groupby",
     "save_feature_importance_as_fig",
     "save_permutation_importance_as_fig",
@@ -28,6 +37,7 @@ __all__ = [
     "plot_ts_point_groupby",
     "plot_ts_bar_groupby",
     "plot_multiple_seasonalities",
+    "plot_confusion_matrix",
 ]
 
 
@@ -208,6 +218,18 @@ def plot_hist(df, feature_name, kind="hist", bins=100, log=True):
     plt.show()
 
 
+def plot_vanilla_barh(df, index_name, feature_name, figsize=(15, 5)):
+    """
+    Plot barh for a particular feature directly without calculating the value_counts
+    """
+    ax = df.set_index(index_name)[feature_name].plot(
+        kind="barh", title=f"Distribtion of {feature_name}", figsize=figsize,
+    )
+    ax.invert_yaxis()
+    plt.legend()
+    plt.show()
+
+
 def plot_barh(
     df, feature_name, normalize=True, kind="barh", figsize=(15, 5), sort_index=False
 ):
@@ -243,6 +265,45 @@ def plot_barh(
         )
     ax.invert_yaxis()
     plt.legend()
+    plt.show()
+
+
+def plot_boxh_train_test_overlapping(
+    train_df, test_df, feature_name, kind="box", log=False, figsize=(10, 4)
+):
+    """
+    Box plot train and test
+    """
+    fig, ((ax1, ax2)) = plt.subplots(2, 1, sharex=True, figsize=figsize)
+    if log:
+        (
+            train_df[feature_name]
+            .apply(np.log1p)
+            .plot(
+                kind="box",
+                vert=False,
+                ax=ax1,
+                label="train",
+                title=f"Distribution of log1p[{feature_name}]",
+            )
+        )
+        (
+            test_df[feature_name]
+            .apply(np.log1p)
+            .plot(kind="box", vert=False, label="test", ax=ax2)
+        )
+    else:
+        ax1 = train_df[feature_name].plot(
+            kind="box",
+            vert=False,
+            ax=ax1,
+            subplots=False,
+            label="train",
+            title=f"Distribution of {feature_name}",
+        )
+        ax2 = test_df[feature_name].plot(
+            kind="box", vert=False, label="test", ax=ax2
+        )
     plt.show()
 
 
@@ -357,24 +418,33 @@ def plot_trend(
     plt.show()
 
 
+def get_colors(color_map_name: str = "Set1") -> Tuple:
+    """
+    https://matplotlib.org/stable/gallery/color/colormap_reference.html
+    # type: matplotlib.colors.ListedColormap
+    """
+    cmap = get_cmap(color_map_name)
+    return cmap.colors
+
+
 def plot_ts_line_groupby(
     df,
     ts_index_feature,
     groupby_feature,
     value_feature,
-    title,
-    xlabel,
-    ylabel,
     figsize=(15, 8),
 ):
+    colors = get_colors()
     fig, ax = plt.subplots(figsize=figsize)
+    ax.set_prop_cycle(color=colors)
     for label, df in df.groupby(groupby_feature):
         df.set_index(ts_index_feature)[value_feature].plot(
-            kind="line", alpha=0.3, ax=ax, color="blue", linewidth=0.5
+            kind="line", alpha=0.3, ax=ax, linewidth=0.1,
         )
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    plt.title(f"Time Series Plot for {value_feature}")
+    plt.xlabel("Time")
+    plt.ylabel(value_feature)
+    # plt.legend()
     plt.show()
 
 
@@ -383,19 +453,19 @@ def plot_ts_point_groupby(
     ts_index_feature,
     groupby_feature,
     value_feature,
-    title,
-    xlabel,
-    ylabel,
     figsize=(15, 8),
 ):
+    colors = get_colors()
     fig, ax = plt.subplots(figsize=figsize)
+    ax.set_prop_cycle(color=colors)
     for label, df in df.groupby(groupby_feature):
         df.set_index(ts_index_feature)[value_feature].plot(
-            style=".", kind="line", alpha=0.2, ax=ax, linewidth=0.5
+            style=".", kind="line", alpha=0.3, ax=ax, linewidth=0.1
         )
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    plt.title(f"Time Series Plot for {value_feature}")
+    plt.xlabel("Time")
+    plt.ylabel(value_feature)
+    # plt.legend(False)
     plt.show()
 
 
@@ -426,9 +496,24 @@ def plot_multiple_seasonalities(df, feature_name, figsize=(20, 6)):
 
     for name, period in zip(period_names, periods):
         plot_seasonality(
-            df.set_index("date_time")[0 : period * 3],
+            df.set_index("date_time")[0: period * 3],
             feature=feature_name,
             freq=period,
             freq_type=name,
             figsize=(20, 6),
         )
+
+
+def plot_confusion_matrix(cm_array, labels, figsize):
+    """
+    cm_array: confusion matrix generated by sklearn's confusion_matrix()
+    labels = List of classes in order
+    """
+    df_cm = pd.DataFrame(
+        cm_array, index=[i for i in labels], columns=[i for i in labels]
+    )
+    plt.figure(figsize=figsize)
+    sns.heatmap(df_cm, annot=True, fmt="d")
+    plt.xlabel("Actual")
+    plt.ylabel("Prediction")
+    plt.show()

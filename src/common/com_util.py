@@ -91,7 +91,6 @@ def update_tracking(
     """
     try:
         df = pd.read_csv(csv_file, index_col=[0])
-        df["lb_score"] = 0
 
         # If the file exists, drop rows (without final results)
         # for previous runs which has been stopped inbetween.
@@ -100,6 +99,7 @@ def update_tracking(
 
     except FileNotFoundError:
         df = pd.DataFrame()
+        df["lb_score"] = 0
 
     if is_integer:
         value = round(value)

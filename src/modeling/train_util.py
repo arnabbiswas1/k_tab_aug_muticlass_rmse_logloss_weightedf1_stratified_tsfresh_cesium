@@ -54,7 +54,7 @@ def _calculate_perf_metric(metric_name, y, y_hat):
     score = None
     if metric_name == "rmse":
         score = rmse(y, y_hat)
-    if metric_name == "rmsle":
+    elif metric_name == "rmsle":
         score = rmsle(y, y_hat)
     elif metric_name == "roc_auc":
         score = roc_auc(y, y_hat)
@@ -866,6 +866,11 @@ def lgb_train_validate_on_cv(
     startify_by_labels: Used as the label for StartifiedKFold on top of continous
     variables
     """
+    cv_scores = []
+    result_dict = {}
+    feature_importance = pd.DataFrame()
+    best_iterations = []
+
     if num_class:
         # This should be true for multiclass classification problems
         y_oof = np.zeros(shape=(len(train_X), num_class))
@@ -874,18 +879,16 @@ def lgb_train_validate_on_cv(
         y_oof = np.zeros(shape=(len(train_X)))
         y_predicted = np.zeros(shape=(len(test_X)))
 
-    cv_scores = []
-    result_dict = {}
-    feature_importance = pd.DataFrame()
-    best_iterations = []
-
     fold = 0
     n_folds = kf.get_n_splits()
     for train_index, validation_index in kf.split(X=train_X, y=train_Y):
         fold += 1
         logger.info(f"fold {fold} of {n_folds}")
 
-        X_train, X_validation, y_train, y_validation = _get_X_Y_from_CV(
+        if num_class:
+            logger.info(f"Number of classes in target {train_Y.nunique()}")
+
+        X_train, X_validation, y_train, y_validation = _get_X_Y_DF_from_CV(
             train_X, train_Y, train_index, validation_index
         )
 
