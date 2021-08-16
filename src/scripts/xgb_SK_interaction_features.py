@@ -92,7 +92,7 @@ if __name__ == "__main__":
     combined_df = pd.concat([combined_df, features_df], axis=1)
 
     logger.info(f"Shape of combined data with features {combined_df.shape}")
-    feature_names = process_data.get_cat_interaction_features(combined_df)
+    feature_names = process_data.get_cat_interaction_features()
 
     logger.info(f"Selceting interaction features {feature_names}")
     combined_df = combined_df.loc[:, orginal_features + feature_names]
