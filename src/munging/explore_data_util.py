@@ -14,7 +14,8 @@ __all__ = [
     "get_bin_feature_names",
     "get_power_feature_names",
     "get_row_wise_stat_feature_names",
-    "get_cat_interaction_features"
+    "get_cat_interaction_features",
+    "get_features_with_no_variance"
 ]
 
 
@@ -127,3 +128,7 @@ def get_bin_feature_names(df, bin_size=10):
 
 def get_cat_interaction_features():
     return ["f1_f86", "f1_f55",	"f1_f27", "f86_f55", "f86_f27", "f55_f27"]
+
+
+def get_features_with_no_variance(df):
+    return df.columns[df.nunique() <= 1]

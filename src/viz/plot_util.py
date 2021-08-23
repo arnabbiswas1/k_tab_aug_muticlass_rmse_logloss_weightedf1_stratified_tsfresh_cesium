@@ -1,16 +1,18 @@
 from typing import Tuple
 
-import matplotlib
+# import matplotlib
 from matplotlib.cm import get_cmap
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import seaborn as sns
 import statsmodels.tsa.api as tsa
+from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.graphics.tsaplots import plot_pacf
 
 import src.munging as munging
 
-matplotlib.style.use("dark_background")
+# matplotlib.style.use("dark_background")
 
 
 __all__ = [
@@ -19,6 +21,7 @@ __all__ = [
     "plot_barh_train_test_side_by_side",
     "plot_line_train_test_overlapping",
     "plot_hist",
+    "plot_point",
     "plot_vanilla_barh",
     "plot_barh",
     "plot_boxh",
@@ -38,6 +41,7 @@ __all__ = [
     "plot_ts_bar_groupby",
     "plot_multiple_seasonalities",
     "plot_confusion_matrix",
+    "plot_acf_pacf"
 ]
 
 
@@ -197,6 +201,22 @@ def plot_line(df, feature_name, figsize=(10, 5)):
     plt.show()
 
 
+def plot_point(df, feature_name, figsize=(10, 5)):
+    """
+    Plot line for a particular feature for the DF
+    """
+    df[feature_name].plot(
+        kind="line",
+        style=".",
+        figsize=figsize,
+        alpha=0.4,
+        title=f"Plot for {feature_name} distribution",
+    )
+    plt.ylabel(f"Value of {feature_name}")
+    plt.legend()
+    plt.show()
+
+
 def plot_hist(df, feature_name, kind="hist", bins=100, log=True):
     """
     Plot either for train or test
@@ -301,9 +321,7 @@ def plot_boxh_train_test_overlapping(
             label="train",
             title=f"Distribution of {feature_name}",
         )
-        ax2 = test_df[feature_name].plot(
-            kind="box", vert=False, label="test", ax=ax2
-        )
+        ax2 = test_df[feature_name].plot(kind="box", vert=False, label="test", ax=ax2)
     plt.show()
 
 
@@ -428,11 +446,7 @@ def get_colors(color_map_name: str = "Set1") -> Tuple:
 
 
 def plot_ts_line_groupby(
-    df,
-    ts_index_feature,
-    groupby_feature,
-    value_feature,
-    figsize=(15, 8),
+    df, ts_index_feature, groupby_feature, value_feature, figsize=(15, 8),
 ):
     colors = get_colors()
     fig, ax = plt.subplots(figsize=figsize)
@@ -449,11 +463,7 @@ def plot_ts_line_groupby(
 
 
 def plot_ts_point_groupby(
-    df,
-    ts_index_feature,
-    groupby_feature,
-    value_feature,
-    figsize=(15, 8),
+    df, ts_index_feature, groupby_feature, value_feature, figsize=(15, 8),
 ):
     colors = get_colors()
     fig, ax = plt.subplots(figsize=figsize)
@@ -496,7 +506,7 @@ def plot_multiple_seasonalities(df, feature_name, figsize=(20, 6)):
 
     for name, period in zip(period_names, periods):
         plot_seasonality(
-            df.set_index("date_time")[0: period * 3],
+            df.set_index("date_time")[0 : period * 3],
             feature=feature_name,
             freq=period,
             freq_type=name,
@@ -516,4 +526,14 @@ def plot_confusion_matrix(cm_array, labels, figsize):
     sns.heatmap(df_cm, annot=True, fmt="d")
     plt.xlabel("Actual")
     plt.ylabel("Prediction")
+    plt.show()
+
+
+def plot_acf_pacf(df, feature_name, lags=50, figsize=(10, 4)):
+    """
+    Plot ACF and PACF side by side
+    """
+    fig, ((ax1, ax2)) = plt.subplots(1, 2, figsize=figsize)
+    plot_acf(df[feature_name], ax=ax1, title=f"ACF for {feature_name}")
+    plot_pacf(df[feature_name], ax=ax2, title=f"PACF for {feature_name}")
     plt.show()

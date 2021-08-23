@@ -1,5 +1,6 @@
 """
-XGB with SK(10) interaction features: f1, f86, f55, f27
+LGB, Kaggle param (2), no freq, seed 20, KFold, objective: poisson
+https://www.kaggle.com/tensorchoko/tabular-aug-2021-lightgbm
 """
 
 import os
@@ -7,9 +8,7 @@ from datetime import datetime
 from timeit import default_timer as timer
 
 import pandas as pd
-
-from sklearn.model_selection import StratifiedKFold
-from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import KFold
 
 import src.common as common
 import src.config.constants as constants
@@ -24,42 +23,61 @@ if __name__ == "__main__":
     RUN_ID = datetime.now().strftime("%m%d_%H%M")
     MODEL_NAME = os.path.basename(__file__).split(".")[0]
 
-    SEED = 42
-    EXP_DETAILS = "XGB with SK(10) interaction features: f1, f86, f55, f27"
+    SEED = 20
+    EXP_DETAILS = "LGB, Kaggle param, no freq, seed 20, KFold, objective: poisson"
     IS_TEST = False
     PLOT_FEATURE_IMPORTANCE = False
 
     TARGET = "loss"
 
-    MODEL_TYPE = "xgb"
-    OBJECTIVE = "reg:squarederror"
-    NUM_CLASSES = 9
-    METRIC = "rmse"
-    BOOSTING_TYPE = "gbtree"
+    MODEL_TYPE = "lgb"
+    OBJECTIVE = "poisson"
+    METRIC = "RMSE"
+    BOOSTING_TYPE = "gbdt"
     VERBOSE = 100
-    N_THREADS = -1
-    NUM_LEAVES = 31
-    MAX_DEPTH = 6
-    N_ESTIMATORS = 10000
-    LEARNING_RATE = 0.1
-    EARLY_STOPPING_ROUNDS = 100
+    N_THREADS = 6
+    NUM_LEAVES = 50
+    MAX_DEPTH = -1
+    N_ESTIMATORS = 80000
+    LEARNING_RATE = 0.006
+    EARLY_STOPPING_ROUNDS = 200
 
-    xgb_params = {
-        # Learning task parameters
+    # These are my default params
+    #
+    # lgb_params = {
+    #     "objective": OBJECTIVE,
+    #     "boosting_type": BOOSTING_TYPE,
+    #     "learning_rate": LEARNING_RATE,
+    #     "num_leaves": NUM_LEAVES,
+    #     "tree_learner": "serial",
+    #     "n_jobs": N_THREADS,
+    #     "seed": SEED,
+    #     "max_depth": MAX_DEPTH,
+    #     "max_bin": 255,
+    #     "metric": METRIC,
+    #     "verbose": -1,
+    # }
+
+    # Params from https://www.kaggle.com/tensorchoko/tabular-aug-2021-lightgbm
+    lgb_params = {
         "objective": OBJECTIVE,
-        "eval_metric": METRIC,
+        "boosting_type": BOOSTING_TYPE,
+        "n_jobs": N_THREADS,
         "seed": SEED,
-        # Type of the booster
-        "booster": BOOSTING_TYPE,
-        # parameters for tree booster
+        "metric": METRIC,
+        "verbose": -1,
+        "feature_pre_filter": False,
+        "lambda_l1": 0.029087258922820665,
+        "lambda_l2": 0.0001317503346197891,
+        "num_leaves": 40,
+        "feature_fraction": 0.4,
+        "bagging_fraction": 1.0,
+        "bagging_freq": 0,
+        "min_child_samples": 20,
+        "num_iterations": 100,
         "learning_rate": LEARNING_RATE,
-        "max_depth": MAX_DEPTH,
-        "max_leaves": NUM_LEAVES,
-        "max_bin": 256,
-        # General parameters
-        "nthread": -1,
-        "verbosity": 2,
-        "validate_parameters": True,
+        "early_stopping_round": EARLY_STOPPING_ROUNDS,
+        "n_estimators": N_ESTIMATORS,
     }
 
     LOGGER_NAME = "sub_1"
@@ -85,24 +103,21 @@ if __name__ == "__main__":
         sample_submission=True,
     )
 
-    features_df = pd.read_parquet(f"{constants.FEATURES_DATA_DIR}/generated_features.parquet")
+    features_df = pd.read_parquet(
+        f"{constants.FEATURES_DATA_DIR}/generated_features.parquet"
+    )
     logger.info(f"Shape of the features {features_df.shape}")
 
     combined_df = pd.concat([train_df.drop("loss", axis=1), test_df])
     orginal_features = list(test_df.columns)
-    combined_df = pd.concat([combined_df, features_df], axis=1)
+    # combined_df = pd.concat([combined_df, features_df], axis=1)
 
-    logger.info(f"Shape of combined data with features {combined_df.shape}")
-    feature_names = process_data.get_cat_interaction_features()
+    # logger.info(f"Shape of combined data with features {combined_df.shape}")
+    # feature_names = process_data.get_freq_encoding_feature_names(combined_df)
 
-    for name in process_data.get_cat_interaction_features():
-        logger.info(f"Label encoding interaction feature {name}")
-        lb = LabelEncoder()
-        combined_df[name] = lb.fit_transform(combined_df[name])
-
-    logger.info(f"Selceting interaction features {feature_names}")
-    combined_df = combined_df.loc[:, orginal_features + feature_names]
-    logger.info(f"Shape of the data after selecting features {combined_df.shape}")
+    # logger.info(f"Selceting frequency encoding features {feature_names}")
+    # combined_df = combined_df.loc[:, orginal_features + feature_names]
+    # logger.info(f"Shape of the data after selecting features {combined_df.shape}")
 
     train_X = combined_df.iloc[0: len(train_df)]
     train_Y = train_df[TARGET]
@@ -113,12 +128,14 @@ if __name__ == "__main__":
     )
 
     predictors = list(train_X.columns)
-    sk = StratifiedKFold(n_splits=10, shuffle=True)
+    sk = KFold(n_splits=10, shuffle=True)
 
     common.update_tracking(RUN_ID, "no_of_features", len(predictors), is_integer=True)
-    common.update_tracking(RUN_ID, "cv_method", "StratifiedKFold")
+    common.update_tracking(RUN_ID, "cv_method", "KFold")
 
-    results_dict = model.xgb_train_validate_on_cv(
+    train_index = train_df.index
+
+    results_dict = model.lgb_train_validate_on_cv(
         logger=logger,
         run_id=RUN_ID,
         train_X=train_X,
@@ -128,14 +145,13 @@ if __name__ == "__main__":
         num_class=None,
         kf=sk,
         features=predictors,
-        params=xgb_params,
+        params=lgb_params,
         n_estimators=N_ESTIMATORS,
         early_stopping_rounds=EARLY_STOPPING_ROUNDS,
+        cat_features="auto",
+        is_test=False,
         verbose_eval=100,
-        is_test=IS_TEST,
     )
-
-    train_index = train_df.index
 
     common.save_artifacts(
         logger,

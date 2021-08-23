@@ -1,5 +1,5 @@
 """
-XGB with SK(10) interaction features: f1, f86, f55, f27
+LGB Benchamrk with StratifiedKFold (10) with frequency encoding
 """
 
 import os
@@ -7,9 +7,7 @@ from datetime import datetime
 from timeit import default_timer as timer
 
 import pandas as pd
-
 from sklearn.model_selection import StratifiedKFold
-from sklearn.preprocessing import LabelEncoder
 
 import src.common as common
 import src.config.constants as constants
@@ -25,41 +23,36 @@ if __name__ == "__main__":
     MODEL_NAME = os.path.basename(__file__).split(".")[0]
 
     SEED = 42
-    EXP_DETAILS = "XGB with SK(10) interaction features: f1, f86, f55, f27"
+    EXP_DETAILS = "LGB Benchamrk with StratifiedKFold (10) with frequency encoding"
     IS_TEST = False
     PLOT_FEATURE_IMPORTANCE = False
 
     TARGET = "loss"
 
-    MODEL_TYPE = "xgb"
-    OBJECTIVE = "reg:squarederror"
-    NUM_CLASSES = 9
-    METRIC = "rmse"
-    BOOSTING_TYPE = "gbtree"
+    MODEL_TYPE = "lgb"
+    OBJECTIVE = "root_mean_squared_error"
+    METRIC = "RMSE"
+    BOOSTING_TYPE = "gbdt"
     VERBOSE = 100
-    N_THREADS = -1
+    N_THREADS = 6
     NUM_LEAVES = 31
-    MAX_DEPTH = 6
-    N_ESTIMATORS = 10000
+    MAX_DEPTH = -1
+    N_ESTIMATORS = 1000
     LEARNING_RATE = 0.1
     EARLY_STOPPING_ROUNDS = 100
 
-    xgb_params = {
-        # Learning task parameters
+    lgb_params = {
         "objective": OBJECTIVE,
-        "eval_metric": METRIC,
-        "seed": SEED,
-        # Type of the booster
-        "booster": BOOSTING_TYPE,
-        # parameters for tree booster
+        "boosting_type": BOOSTING_TYPE,
         "learning_rate": LEARNING_RATE,
+        "num_leaves": NUM_LEAVES,
+        "tree_learner": "serial",
+        "n_jobs": N_THREADS,
+        "seed": SEED,
         "max_depth": MAX_DEPTH,
-        "max_leaves": NUM_LEAVES,
-        "max_bin": 256,
-        # General parameters
-        "nthread": -1,
-        "verbosity": 2,
-        "validate_parameters": True,
+        "max_bin": 255,
+        "metric": METRIC,
+        "verbose": -1,
     }
 
     LOGGER_NAME = "sub_1"
@@ -93,14 +86,9 @@ if __name__ == "__main__":
     combined_df = pd.concat([combined_df, features_df], axis=1)
 
     logger.info(f"Shape of combined data with features {combined_df.shape}")
-    feature_names = process_data.get_cat_interaction_features()
+    feature_names = process_data.get_freq_encoding_feature_names(combined_df)
 
-    for name in process_data.get_cat_interaction_features():
-        logger.info(f"Label encoding interaction feature {name}")
-        lb = LabelEncoder()
-        combined_df[name] = lb.fit_transform(combined_df[name])
-
-    logger.info(f"Selceting interaction features {feature_names}")
+    logger.info(f"Selceting frequency encoding features {feature_names}")
     combined_df = combined_df.loc[:, orginal_features + feature_names]
     logger.info(f"Shape of the data after selecting features {combined_df.shape}")
 
@@ -118,7 +106,9 @@ if __name__ == "__main__":
     common.update_tracking(RUN_ID, "no_of_features", len(predictors), is_integer=True)
     common.update_tracking(RUN_ID, "cv_method", "StratifiedKFold")
 
-    results_dict = model.xgb_train_validate_on_cv(
+    train_index = train_df.index
+
+    results_dict = model.lgb_train_validate_on_cv(
         logger=logger,
         run_id=RUN_ID,
         train_X=train_X,
@@ -128,14 +118,13 @@ if __name__ == "__main__":
         num_class=None,
         kf=sk,
         features=predictors,
-        params=xgb_params,
+        params=lgb_params,
         n_estimators=N_ESTIMATORS,
         early_stopping_rounds=EARLY_STOPPING_ROUNDS,
+        cat_features="auto",
+        is_test=False,
         verbose_eval=100,
-        is_test=IS_TEST,
     )
-
-    train_index = train_df.index
 
     common.save_artifacts(
         logger,
