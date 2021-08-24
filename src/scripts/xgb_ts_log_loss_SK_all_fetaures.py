@@ -1,5 +1,5 @@
 """
-XGB with SK(10) row wise stat features
+XGB ts log_loss SKFold 10 top all features
 """
 
 import os
@@ -7,6 +7,7 @@ from datetime import datetime
 from timeit import default_timer as timer
 
 import pandas as pd
+import numpy as np
 
 from sklearn.model_selection import StratifiedKFold
 
@@ -14,6 +15,8 @@ import src.common as common
 import src.config.constants as constants
 import src.modeling as model
 import src.munging as process_data
+import src.common.com_util as util
+
 
 if __name__ == "__main__":
     common.set_timezone()
@@ -24,16 +27,17 @@ if __name__ == "__main__":
     MODEL_NAME = os.path.basename(__file__).split(".")[0]
 
     SEED = 42
-    EXP_DETAILS = "XGB with SK(10) row wise stat features"
+    EXP_DETAILS = "XGB ts log_loss SKFold 10 all features"
     IS_TEST = False
-    PLOT_FEATURE_IMPORTANCE = False
+    # PLOT_FEATURE_IMPORTANCE = False
+    N_SPLITS = 10
 
     TARGET = "loss"
 
     MODEL_TYPE = "xgb"
-    OBJECTIVE = "reg:squarederror"
-    NUM_CLASSES = None
-    METRIC = "rmse"
+    OBJECTIVE = "multi:softprob"
+    NUM_CLASSES = 43
+    METRIC = "mlogloss"
     BOOSTING_TYPE = "gbtree"
     VERBOSE = 100
     N_THREADS = -1
@@ -48,6 +52,7 @@ if __name__ == "__main__":
         "objective": OBJECTIVE,
         "eval_metric": METRIC,
         "seed": SEED,
+        "num_class": NUM_CLASSES,
         # Type of the booster
         "booster": BOOSTING_TYPE,
         # parameters for tree booster
@@ -84,33 +89,35 @@ if __name__ == "__main__":
         sample_submission=True,
     )
 
-    features_df = pd.read_parquet(f"{constants.FEATURES_DATA_DIR}/generated_features.parquet")
+    features_df = pd.read_parquet(f"{constants.FEATURES_DATA_DIR}/cast/tsfresh_f_merged.parquet")
+
     logger.info(f"Shape of the features {features_df.shape}")
 
-    combined_df = pd.concat([train_df.drop("loss", axis=1), test_df])
-    orginal_features = list(test_df.columns)
-    combined_df = pd.concat([combined_df, features_df], axis=1)
+    train_X = features_df.iloc[0: len(train_df)]
+    train_Y = train_df["loss"]
+    test_X = features_df.iloc[len(train_df):]
 
-    logger.info(f"Shape of combined data with features {combined_df.shape}")
-    feature_names = process_data.get_row_wise_stat_feature_names()
+    logger.info("Adding additional rows for loss=42")
+    train_X_rare = train_X.loc[[96131, 131570, 212724]]
+    train_X = train_X.append(
+        [train_X_rare, train_X_rare, train_X_rare], ignore_index=True
+    )
 
-    logger.info(f"Selceting row  wise stat features {feature_names}")
-    combined_df = combined_df.loc[:, orginal_features + feature_names]
-    logger.info(f"Shape of the data after selecting features {combined_df.shape}")
-
-    train_X = combined_df.iloc[0: len(train_df)]
-    train_Y = train_df[TARGET]
-    test_X = combined_df.iloc[len(train_df):]
+    train_Y_rare = train_Y.loc[[96131, 131570, 212724]]
+    train_Y = train_Y.append(
+        [train_Y_rare, train_Y_rare, train_Y_rare], ignore_index=True
+    )
 
     logger.info(
         f"Shape of train_X : {train_X.shape}, test_X: {test_X.shape}, train_Y: {train_Y.shape}"
     )
 
     predictors = list(train_X.columns)
-    sk = StratifiedKFold(n_splits=10, shuffle=True)
+    sk = StratifiedKFold(n_splits=N_SPLITS, shuffle=True)
 
     common.update_tracking(RUN_ID, "no_of_features", len(predictors), is_integer=True)
     common.update_tracking(RUN_ID, "cv_method", "StratifiedKFold")
+    common.update_tracking(RUN_ID, "n_splits", N_SPLITS, is_integer=True)
 
     results_dict = model.xgb_train_validate_on_cv(
         logger=logger,
@@ -118,8 +125,8 @@ if __name__ == "__main__":
         train_X=train_X,
         train_Y=train_Y,
         test_X=test_X,
-        metric="rmse",
-        num_class=None,
+        metric="log_loss",
+        num_class=NUM_CLASSES,
         kf=sk,
         features=predictors,
         params=xgb_params,
@@ -129,7 +136,21 @@ if __name__ == "__main__":
         is_test=IS_TEST,
     )
 
-    train_index = train_df.index
+    train_index = train_X.index
+
+    # Since we are using multiclass classification with logloss as metric
+    # the prediction and y_oof consist of probablities for 43 classes.
+    # Convert those to a label representing the number of the class
+    results_dict_copy = results_dict.copy()
+    logger.info(results_dict["prediction"])
+    results_dict_copy["prediction"] = np.argmax(results_dict["prediction"], axis=1)
+    results_dict_copy["y_oof"] = np.argmax(results_dict["y_oof"], axis=1)
+
+    rmse_score = model._calculate_perf_metric("rmse", train_Y.values, results_dict_copy["y_oof"])
+    logger.info(f"RMSE score {rmse_score}")
+    util.update_tracking(
+        run_id=RUN_ID, key="RMSE", value=rmse_score, is_integer=False
+    )
 
     common.save_artifacts(
         logger,

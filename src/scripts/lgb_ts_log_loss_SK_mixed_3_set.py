@@ -1,19 +1,22 @@
 """
-XGB with SK(10) row wise stat features
+LGB ts log_loss SKFold 10 mixed 3
 """
+
+import numpy as np
+import pandas as pd
 
 import os
 from datetime import datetime
 from timeit import default_timer as timer
 
-import pandas as pd
-
 from sklearn.model_selection import StratifiedKFold
 
 import src.common as common
 import src.config.constants as constants
-import src.modeling as model
-import src.munging as process_data
+import src.modeling.train_util as model
+import src.munging.process_data_util as process_data
+
+import src.common.com_util as util
 
 if __name__ == "__main__":
     common.set_timezone()
@@ -24,41 +27,40 @@ if __name__ == "__main__":
     MODEL_NAME = os.path.basename(__file__).split(".")[0]
 
     SEED = 42
-    EXP_DETAILS = "XGB with SK(10) row wise stat features"
+    EXP_DETAILS = "LGB ts log_loss SKFold 10 mixed 3"
     IS_TEST = False
     PLOT_FEATURE_IMPORTANCE = False
 
+    N_SPLITS = 10
+
     TARGET = "loss"
 
-    MODEL_TYPE = "xgb"
-    OBJECTIVE = "reg:squarederror"
-    NUM_CLASSES = None
-    METRIC = "rmse"
-    BOOSTING_TYPE = "gbtree"
+    MODEL_TYPE = "lgb"
+    OBJECTIVE = "multiclass"
+    NUM_CLASSES = 43
+    METRIC = "multi_logloss"
+    BOOSTING_TYPE = "gbdt"
     VERBOSE = 100
-    N_THREADS = -1
+    N_THREADS = 8
     NUM_LEAVES = 31
-    MAX_DEPTH = 6
-    N_ESTIMATORS = 10000
+    MAX_DEPTH = -1
+    N_ESTIMATORS = 1000
     LEARNING_RATE = 0.1
     EARLY_STOPPING_ROUNDS = 100
 
-    xgb_params = {
-        # Learning task parameters
+    lgb_params = {
         "objective": OBJECTIVE,
-        "eval_metric": METRIC,
-        "seed": SEED,
-        # Type of the booster
-        "booster": BOOSTING_TYPE,
-        # parameters for tree booster
+        "boosting_type": BOOSTING_TYPE,
         "learning_rate": LEARNING_RATE,
+        "num_class": NUM_CLASSES,
+        "num_leaves": NUM_LEAVES,
+        "tree_learner": "serial",
+        "n_jobs": N_THREADS,
+        "seed": SEED,
         "max_depth": MAX_DEPTH,
-        "max_leaves": NUM_LEAVES,
-        "max_bin": 256,
-        # General parameters
-        "nthread": -1,
-        "verbosity": 2,
-        "validate_parameters": True,
+        "max_bin": 255,
+        "metric": METRIC,
+        "verbose": -1,
     }
 
     LOGGER_NAME = "sub_1"
@@ -84,58 +86,78 @@ if __name__ == "__main__":
         sample_submission=True,
     )
 
-    features_df = pd.read_parquet(f"{constants.FEATURES_DATA_DIR}/generated_features.parquet")
+    features_df = pd.read_parquet(f"{constants.FEATURES_DATA_DIR}/cast/mixed_3_set_cast.parquet")
+
     logger.info(f"Shape of the features {features_df.shape}")
+    features_to_drop = []
+    features_df = features_df.drop(features_to_drop, axis=1)
+    logger.info(f"Shape of the features after dropping {features_df.shape}")
 
-    combined_df = pd.concat([train_df.drop("loss", axis=1), test_df])
-    orginal_features = list(test_df.columns)
-    combined_df = pd.concat([combined_df, features_df], axis=1)
+    train_X = features_df.iloc[0: len(train_df)]
+    train_Y = train_df["loss"]
+    test_X = features_df.iloc[len(train_df):]
 
-    logger.info(f"Shape of combined data with features {combined_df.shape}")
-    feature_names = process_data.get_row_wise_stat_feature_names()
+    logger.info("Adding additional rows for loss=42")
+    train_X_rare = train_X.loc[[96131, 131570, 212724]]
+    train_X = train_X.append(
+        [train_X_rare, train_X_rare, train_X_rare], ignore_index=True
+    )
 
-    logger.info(f"Selceting row  wise stat features {feature_names}")
-    combined_df = combined_df.loc[:, orginal_features + feature_names]
-    logger.info(f"Shape of the data after selecting features {combined_df.shape}")
-
-    train_X = combined_df.iloc[0: len(train_df)]
-    train_Y = train_df[TARGET]
-    test_X = combined_df.iloc[len(train_df):]
+    train_Y_rare = train_Y.loc[[96131, 131570, 212724]]
+    train_Y = train_Y.append(
+        [train_Y_rare, train_Y_rare, train_Y_rare], ignore_index=True
+    )
 
     logger.info(
         f"Shape of train_X : {train_X.shape}, test_X: {test_X.shape}, train_Y: {train_Y.shape}"
     )
 
     predictors = list(train_X.columns)
-    sk = StratifiedKFold(n_splits=10, shuffle=True)
+    sk = StratifiedKFold(n_splits=N_SPLITS, shuffle=True)
 
     common.update_tracking(RUN_ID, "no_of_features", len(predictors), is_integer=True)
     common.update_tracking(RUN_ID, "cv_method", "StratifiedKFold")
+    common.update_tracking(RUN_ID, "n_splits", N_SPLITS, is_integer=True)
 
-    results_dict = model.xgb_train_validate_on_cv(
+    results_dict = model.lgb_train_validate_on_cv(
         logger=logger,
         run_id=RUN_ID,
         train_X=train_X,
         train_Y=train_Y,
         test_X=test_X,
-        metric="rmse",
-        num_class=None,
+        metric="log_loss",
+        num_class=NUM_CLASSES,
         kf=sk,
         features=predictors,
-        params=xgb_params,
+        params=lgb_params,
         n_estimators=N_ESTIMATORS,
         early_stopping_rounds=EARLY_STOPPING_ROUNDS,
+        cat_features="auto",
+        is_test=False,
         verbose_eval=100,
-        is_test=IS_TEST,
     )
 
-    train_index = train_df.index
+    train_index = train_X.index
+
+    # Since we are using multiclass classification with logloss as metric
+    # the prediction and y_oof consist of probablities for 43 classes.
+    # Convert those to a label representing the number of the class
+    results_dict_copy = results_dict.copy()
+    logger.info(results_dict["prediction"])
+    results_dict_copy["prediction"] = np.argmax(results_dict["prediction"], axis=1)
+    results_dict_copy["y_oof"] = np.argmax(results_dict["y_oof"], axis=1)
+
+    rmse_score = model._calculate_perf_metric("rmse", train_Y.values, results_dict_copy["y_oof"])
+    logger.info(f"RMSE score {rmse_score}")
+    util.update_tracking(
+        run_id=RUN_ID, key="RMSE", value=rmse_score, is_integer=False
+    )
 
     common.save_artifacts(
         logger,
         is_test=False,
         is_plot_fi=True,
-        result_dict=results_dict,
+        result_dict=results_dict_copy,
         submission_df=sample_submission_df,
         train_index=train_index,
         model_number=MODEL_NAME,

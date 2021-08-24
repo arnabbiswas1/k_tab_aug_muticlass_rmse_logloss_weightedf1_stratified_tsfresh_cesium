@@ -26,7 +26,7 @@ __all__ = [
 
 
 def roc_auc(y, y_hat):
-    roc_auc_score(y, y_hat)
+    return roc_auc_score(y, y_hat)
 
 
 def log_loss(y, y_hat):
