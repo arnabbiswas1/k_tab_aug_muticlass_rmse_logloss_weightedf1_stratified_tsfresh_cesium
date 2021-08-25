@@ -8,7 +8,7 @@ import xgboost as xgb
 from catboost import CatBoost, Pool
 from IPython.display import display
 from sklearn import metrics
-from sklearn.metrics import make_scorer, roc_auc_score, mean_squared_error
+from sklearn.metrics import make_scorer, roc_auc_score, mean_squared_error, f1_score
 
 import src.common.com_util as util
 
@@ -23,6 +23,34 @@ __all__ = [
     "sklearn_train_validate_on_cv",
     "lgb_train_perm_importance_on_cv",
 ]
+
+
+def evaluate_macroF1_lgb(y_hat, data):
+    """
+    Custom F1 Score to be used for multiclass classification using lightgbm.
+    This function should be passed as a value to the parameter feval.
+
+    weighted average takes care of imbalance
+
+    https://stackoverflow.com/questions/57222667/light-gbm-early-stopping-does-not-work-for-custom-metric
+    https://stackoverflow.com/questions/52420409/lightgbm-manual-scoring-function-f1-score
+    https://stackoverflow.com/questions/51139150/how-to-write-custom-f1-score-metric-in-light-gbm-python-in-multiclass-classifica
+    """
+    y = data.get_label()
+    y_hat = y_hat.reshape(-1, len(np.unique(y))).argmax(axis=1)
+    f1 = f1_score(y_true=y, y_pred=y_hat, average="weighted")
+    return ("weightedF1", f1, True)
+
+
+def f1_score_weighted(y, y_hat):
+    """
+    It's assumed that y_hat consists of a two dimensional array.
+    Each array in the first dimension has probabilities for all the
+    classes, i.e. if there are 43 classes and 1000 rows of data, the y_hat
+    has a dimension (1000, 43)
+    """
+    y_hat = y_hat.reshape(-1, len(np.unique(y))).argmax(axis=1)
+    return f1_score(y_true=y, y_pred=y_hat, average="weighted")
 
 
 def roc_auc(y, y_hat):
@@ -60,6 +88,8 @@ def _calculate_perf_metric(metric_name, y, y_hat):
         score = roc_auc(y, y_hat)
     elif metric_name == "log_loss":
         score = log_loss(y, y_hat)
+    elif metric_name == "f1_score_weighted":
+        score = f1_score_weighted(y, y_hat)
     else:
         raise ValueError(
             "Invalid value for metric_name. Only rmse, rmsle, roc_auc, log_loss allowed"
@@ -858,6 +888,7 @@ def lgb_train_validate_on_cv(
     verbose_eval=100,
     is_test=False,
     log_target=False,
+    feval=None
 ):
     """Train a LightGBM model, validate using cross validation. If `test_X` has
     a valid value, creates a new model with number of best iteration found during
@@ -901,16 +932,30 @@ def lgb_train_validate_on_cv(
             lgb_train = lgb.Dataset(X_train, y_train)
             lgb_eval = lgb.Dataset(X_validation, y_validation, reference=lgb_train)
 
-        model = lgb.train(
-            params,
-            lgb_train,
-            valid_sets=[lgb_train, lgb_eval],
-            verbose_eval=verbose_eval,
-            early_stopping_rounds=early_stopping_rounds,
-            num_boost_round=n_estimators,
-            feature_name=features,
-            categorical_feature=cat_features,
-        )
+        if feval:
+            # For custom metric. metric should be set to "custom" in parameters
+            model = lgb.train(
+                params,
+                lgb_train,
+                valid_sets=[lgb_train, lgb_eval],
+                verbose_eval=verbose_eval,
+                early_stopping_rounds=early_stopping_rounds,
+                num_boost_round=n_estimators,
+                feature_name=features,
+                categorical_feature=cat_features,
+                feval=feval
+            )
+        else:
+            model = lgb.train(
+                params,
+                lgb_train,
+                valid_sets=[lgb_train, lgb_eval],
+                verbose_eval=verbose_eval,
+                early_stopping_rounds=early_stopping_rounds,
+                num_boost_round=n_estimators,
+                feature_name=features,
+                categorical_feature=cat_features,
+            )
 
         del lgb_train, lgb_eval, train_index, X_train, y_train
         gc.collect()

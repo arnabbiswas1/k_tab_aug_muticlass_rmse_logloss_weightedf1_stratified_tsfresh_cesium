@@ -6,6 +6,7 @@ FEATURES_DATA_DIR = f"{HOME_DIR}/data/features"
 
 LOG_DIR = f"{HOME_DIR}/logs"
 SUBMISSION_DIR = f"{HOME_DIR}/submissions"
+PUB_SUBMISSION_DIR = f"{HOME_DIR}/public_submissions"
 OOF_DIR = f"{HOME_DIR}/oof"
 FI_DIR = f"{HOME_DIR}/fi"
 FI_FIG_DIR = f"{HOME_DIR}/fi_fig"
