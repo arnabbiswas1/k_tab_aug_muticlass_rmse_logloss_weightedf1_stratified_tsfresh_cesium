@@ -131,8 +131,13 @@ dmypy.json
 # Image
 .png
 
+# dask
+dask-worker-space/
+catboost_info/
+
 # Data 
 *.feather
 *.zip
 *.csv
 *.parquet
+*.png
