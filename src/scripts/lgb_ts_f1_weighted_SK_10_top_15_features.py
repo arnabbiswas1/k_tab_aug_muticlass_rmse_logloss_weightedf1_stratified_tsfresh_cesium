@@ -1,5 +1,5 @@
 """
-LGB ts f1-weighted SKFold 5 top 5 features
+LGB ts f1-weighted SKFold 10 top 15 features
 """
 
 import numpy as np
@@ -27,11 +27,11 @@ if __name__ == "__main__":
     MODEL_NAME = os.path.basename(__file__).split(".")[0]
 
     SEED = 42
-    EXP_DETAILS = "LGB ts f1-weighted SKFold 5 top 5 features"
+    EXP_DETAILS = "LGB ts f1-weighted SKFold 10 top 15 features"
     IS_TEST = False
     PLOT_FEATURE_IMPORTANCE = False
 
-    N_SPLITS = 5
+    N_SPLITS = 10
 
     TARGET = "loss"
 
@@ -99,29 +99,35 @@ if __name__ == "__main__":
         "loan__fft_coefficient__attr_real__coeff_27",
         "loan__cwt_coefficients__coeff_8__w_2__widths_251020",
         "loan__fft_coefficient__attr_angle__coeff_27",
+        "loan__ar_coefficient__coeff_10__k_10",
+        "loan__fft_coefficient__attr_imag__coeff_46",
+        "loan__fft_coefficient__attr_imag__coeff_12",
+        "loan__skewness",
+        "loan__agg_linear_trend__attr_stderr__chunk_len_5__f_agg_mean",
+        "loan__fft_coefficient__attr_abs__coeff_27",
+        "loan__fft_coefficient__attr_abs__coeff_46",
+        "loan__autocorrelation__lag_1",
+        "loan__fft_coefficient__attr_angle__coeff_12",
+        "loan__cwt_coefficients__coeff_7__w_2__widths_251020",
+        "loan__ar_coefficient__coeff_0__k_10",
+        "loan__cwt_coefficients__coeff_9__w_2__widths_251020",
     ]
     features_df = features_df[fetaures_to_use]
     logger.info(f"Shape of the selected features {features_df.shape}")
 
-    train_X = features_df.iloc[0: len(train_df)]
+    train_X = features_df.iloc[0 : len(train_df)]
     train_Y = train_df["loss"]
-    test_X = features_df.iloc[len(train_df):]
+    test_X = features_df.iloc[len(train_df) :]
 
     logger.info("Adding additional rows for loss=42")
     train_X_rare = train_X.loc[[96131, 131570, 212724]]
-    # train_X = train_X.append(
-    #     [train_X_rare, train_X_rare, train_X_rare], ignore_index=True
-    # )
     train_X = train_X.append(
-            [train_X_rare], ignore_index=True
+        [train_X_rare, train_X_rare, train_X_rare], ignore_index=True
     )
 
     train_Y_rare = train_Y.loc[[96131, 131570, 212724]]
-    # train_Y = train_Y.append(
-    #     [train_Y_rare, train_Y_rare, train_Y_rare], ignore_index=True
-    # )
     train_Y = train_Y.append(
-        [train_Y_rare], ignore_index=True
+        [train_Y_rare, train_Y_rare, train_Y_rare], ignore_index=True
     )
 
     logger.info(

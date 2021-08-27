@@ -22,6 +22,9 @@ __all__ = [
     "cat_train_validate_on_cv",
     "sklearn_train_validate_on_cv",
     "lgb_train_perm_importance_on_cv",
+    "evaluate_macroF1_xgb",
+    "evaluate_macroF1_lgb",
+    "_calculate_perf_metric"
 ]
 
 
@@ -40,6 +43,22 @@ def evaluate_macroF1_lgb(y_hat, data):
     y_hat = y_hat.reshape(-1, len(np.unique(y))).argmax(axis=1)
     f1 = f1_score(y_true=y, y_pred=y_hat, average="weighted")
     return ("weightedF1", f1, True)
+
+
+def evaluate_macroF1_xgb(y_hat, data):
+    """
+    Custom F1 Score to be used for multiclass classification using xgboost.
+    This function should be passed as a value to the parameter feval.
+
+    weighted average takes care of imbalance
+
+    https://stackoverflow.com/questions/51587535/custom-evaluation-function-based-on-f1-for-use-in-xgboost-python-api
+    https://www.kaggle.com/c/expedia-hotel-recommendations/discussion/21439
+    """
+    y = data.get_label()
+    y_hat = y_hat.reshape(-1, len(np.unique(y))).argmax(axis=1)
+    f1 = f1_score(y_true=y, y_pred=y_hat, average="weighted")
+    return ("weightedF1", f1)
 
 
 def f1_score_weighted(y, y_hat):
@@ -741,6 +760,7 @@ def xgb_train_validate_on_cv(
     verbose_eval=100,
     is_test=False,
     log_target=False,
+    feval=None
 ):
     """Train a XGBoost model, validate using cross validation. If `test_X` has
     a valid value, creates a new model with number of best iteration found during
@@ -783,14 +803,27 @@ def xgb_train_validate_on_cv(
             )
 
         watchlist = [(xgb_train, "train"), (xgb_eval, "valid_data")]
-        model = xgb.train(
-            dtrain=xgb_train,
-            num_boost_round=n_estimators,
-            evals=watchlist,
-            early_stopping_rounds=early_stopping_rounds,
-            params=params,
-            verbose_eval=verbose_eval,
-        )
+        if feval:
+            # Use the custom metrics
+            # Comment out eval_metric in the parameters
+            model = xgb.train(
+                dtrain=xgb_train,
+                num_boost_round=n_estimators,
+                evals=watchlist,
+                early_stopping_rounds=early_stopping_rounds,
+                params=params,
+                verbose_eval=verbose_eval,
+                feval=feval
+            )
+        else:
+            model = xgb.train(
+                dtrain=xgb_train,
+                num_boost_round=n_estimators,
+                evals=watchlist,
+                early_stopping_rounds=early_stopping_rounds,
+                params=params,
+                verbose_eval=verbose_eval,
+            )
 
         del xgb_train, xgb_eval, train_index, X_train, y_train
         gc.collect()
@@ -1219,7 +1252,10 @@ def cat_train_validate_on_cv(
             cat_test = Pool(
                 data=test_X, feature_names=features, cat_features=cat_features
             )
-            y_predicted += np.expm1(model.predict(cat_test))
+            if log_target:
+                y_predicted += np.expm1(model.predict(cat_test))
+            else:
+                y_predicted += model.predict(cat_test)
 
         del cat_eval, cat_test
 
