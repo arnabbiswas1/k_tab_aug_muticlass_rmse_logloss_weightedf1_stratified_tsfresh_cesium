@@ -169,10 +169,11 @@ def main():
 
     logger.info("Preparing the data...")
     a = []
-    for i in range(0, len(combined_df)):
+    # for i in range(0, len(combined_df)):
+    for i in range(0, 100000):
         a.append(np.arange(start=0, stop=100, step=1))
 
-    ts = list(combined_df_min_max.values)
+    ts = list(combined_df_min_max[300000:400000].values)
 
     logger.info("Engineering the features...")
     fset_cesium = featurize.featurize_time_series(
@@ -188,7 +189,9 @@ def main():
     fset_cesium.columns = fset_cesium.columns.get_level_values(0)
 
     logger.info("Writing to parquet filee")
-    fset_cesium.to_parquet(f"{constants.FEATURES_DATA_DIR}/cesium_features.parquet", index=True)
+    fset_cesium.to_parquet(
+        f"{constants.FEATURES_DATA_DIR}/cesium_features_4.parquet", index=True
+    )
     logger.info("Completed...")
 
 

@@ -1,5 +1,5 @@
 """
-LGB ts f1-weighted SKFold 10 top 5 features
+LGB ts f1-weighted SKFold 10 tsfresh & cesium all features
 """
 
 import numpy as np
@@ -27,11 +27,11 @@ if __name__ == "__main__":
     MODEL_NAME = os.path.basename(__file__).split(".")[0]
 
     SEED = 42
-    EXP_DETAILS = "LGB ts f1-weighted SKFold 10 (seed 42) top 5 features"
+    EXP_DETAILS = "LGB ts f1-weighted SKFold 10 tsfresh & cesium all features"
     IS_TEST = False
     PLOT_FEATURE_IMPORTANCE = False
 
-    N_SPLITS = 5
+    N_SPLITS = 10
 
     TARGET = "loss"
 
@@ -93,15 +93,18 @@ if __name__ == "__main__":
     )
 
     logger.info(f"Shape of the features {features_df.shape}")
-    fetaures_to_use = [
-        "loan__agg_linear_trend__attr_stderr__chunk_len_10__f_agg_mean",
-        "loan__change_quantiles__f_agg_mean__isabs_False__qh_06__ql_02",
-        "loan__fft_coefficient__attr_real__coeff_27",
-        "loan__cwt_coefficients__coeff_8__w_2__widths_251020",
-        "loan__fft_coefficient__attr_angle__coeff_27",
-    ]
-    features_df = features_df[fetaures_to_use]
-    logger.info(f"Shape of the selected features {features_df.shape}")
+    # fetaures_to_use = [
+    #     "loan__agg_linear_trend__attr_stderr__chunk_len_10__f_agg_mean",
+    #     "loan__change_quantiles__f_agg_mean__isabs_False__qh_06__ql_02",
+    #     "loan__fft_coefficient__attr_real__coeff_27",
+    #     "loan__cwt_coefficients__coeff_8__w_2__widths_251020",
+    #     "loan__fft_coefficient__attr_angle__coeff_27",
+    # ]
+    # features_df = features_df[fetaures_to_use]
+    # logger.info(f"Shape of the selected features {features_df.shape}")
+
+    df_cesium = pd.read_parquet(f"{constants.FEATURES_DATA_DIR}/cesium_final.parquet")
+    features_df = pd.concat([features_df, df_cesium], axis=1)
 
     train_X = features_df.iloc[0: len(train_df)]
     train_Y = train_df["loss"]
@@ -109,19 +112,13 @@ if __name__ == "__main__":
 
     logger.info("Adding additional rows for loss=42")
     train_X_rare = train_X.loc[[96131, 131570, 212724]]
-    # train_X = train_X.append(
-    #     [train_X_rare, train_X_rare, train_X_rare], ignore_index=True
-    # )
     train_X = train_X.append(
-            [train_X_rare], ignore_index=True
+        [train_X_rare, train_X_rare, train_X_rare], ignore_index=True
     )
 
     train_Y_rare = train_Y.loc[[96131, 131570, 212724]]
-    # train_Y = train_Y.append(
-    #     [train_Y_rare, train_Y_rare, train_Y_rare], ignore_index=True
-    # )
     train_Y = train_Y.append(
-        [train_Y_rare], ignore_index=True
+        [train_Y_rare, train_Y_rare, train_Y_rare], ignore_index=True
     )
 
     logger.info(
@@ -129,10 +126,13 @@ if __name__ == "__main__":
     )
 
     predictors = list(train_X.columns)
-    sk = StratifiedKFold(n_splits=N_SPLITS, shuffle=True)
+    sk = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
+
+    logger.info(f"List of predictors {predictors}")
 
     common.update_tracking(RUN_ID, "no_of_features", len(predictors), is_integer=True)
     common.update_tracking(RUN_ID, "cv_method", "StratifiedKFold")
+    common.update_tracking(RUN_ID, "seed", SEED)
     common.update_tracking(RUN_ID, "n_splits", N_SPLITS, is_integer=True)
 
     results_dict = model.lgb_train_validate_on_cv(
@@ -166,8 +166,32 @@ if __name__ == "__main__":
     rmse_score = model._calculate_perf_metric(
         "rmse", train_Y.values, results_dict_copy["y_oof"]
     )
+    precision_score = model._calculate_perf_metric(
+        "precision_weighted", train_Y.values, results_dict_copy["y_oof"]
+    )
+
+    recall_score = model._calculate_perf_metric(
+        "recall_weighted", train_Y.values, results_dict_copy["y_oof"]
+    )
+
     logger.info(f"RMSE score {rmse_score}")
-    util.update_tracking(run_id=RUN_ID, key="RMSE", value=rmse_score, is_integer=False)
+    util.update_tracking(
+        run_id=RUN_ID, key="RMSE", value=rmse_score, is_integer=False, no_of_digits=5
+    )
+    util.update_tracking(
+        run_id=RUN_ID,
+        key="precision",
+        value=precision_score,
+        is_integer=False,
+        no_of_digits=5,
+    )
+    util.update_tracking(
+        run_id=RUN_ID,
+        key="recall",
+        value=recall_score,
+        is_integer=False,
+        no_of_digits=5,
+    )
 
     common.save_artifacts(
         logger,

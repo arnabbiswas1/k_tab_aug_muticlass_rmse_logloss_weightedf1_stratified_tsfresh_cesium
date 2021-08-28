@@ -41,7 +41,7 @@ class GreedyFeatureSelection:
         return X_train, X_validation, y_train, y_validation
 
     def __calculate_perf_metric(self, y, y_hat):
-        return calculate_metric(metric_name="rmse", y=y, y_hat=y_hat)
+        return calculate_metric(metric_name="f1_score_weighted", y=y, y_hat=y_hat)
 
     def evalaute_score(self, train_X, train_Y):
         kf = StratifiedKFold(n_splits=2, shuffle=True)
@@ -53,7 +53,7 @@ class GreedyFeatureSelection:
         BOOSTING_TYPE = "gbdt"
         VERBOSE = 100
         N_THREADS = 8
-        NUM_LEAVES = 31
+        NUM_LEAVES = 31w
         MAX_DEPTH = -1
         N_ESTIMATORS = 1000
         LEARNING_RATE = 0.1
@@ -74,7 +74,7 @@ class GreedyFeatureSelection:
             "verbose": -1,
         }
 
-        y_oof = np.zeros(len(train_X))
+        y_oof = np.zeros(shape=(len(train_X), NUM_CLASSES))
 
         features = list(train_X.columns)
         fold = 0

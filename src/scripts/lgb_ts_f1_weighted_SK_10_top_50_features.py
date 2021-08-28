@@ -168,7 +168,7 @@ if __name__ == "__main__":
     )
 
     predictors = list(train_X.columns)
-    sk = StratifiedKFold(n_splits=N_SPLITS, shuffle=True)
+    sk = StratifiedKFold(n_splits=N_SPLITS, shuffle=False)
 
     common.update_tracking(RUN_ID, "no_of_features", len(predictors), is_integer=True)
     common.update_tracking(RUN_ID, "cv_method", "StratifiedKFold")

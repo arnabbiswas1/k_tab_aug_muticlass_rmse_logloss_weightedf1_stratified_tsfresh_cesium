@@ -1,5 +1,5 @@
 """
-LGB ts f1-weighted SKFold 10 top 5 features
+LGB ts f1-weighted SKFold 10 top 5 tsfresh features & cesium all features
 """
 
 import numpy as np
@@ -27,11 +27,11 @@ if __name__ == "__main__":
     MODEL_NAME = os.path.basename(__file__).split(".")[0]
 
     SEED = 42
-    EXP_DETAILS = "LGB ts f1-weighted SKFold 10 (seed 42) top 5 features"
+    EXP_DETAILS = "LGB ts f1-weighted SKFold 10 top 5 tsfresh features & cesium all features"
     IS_TEST = False
     PLOT_FEATURE_IMPORTANCE = False
 
-    N_SPLITS = 5
+    N_SPLITS = 10
 
     TARGET = "loss"
 
@@ -103,25 +103,22 @@ if __name__ == "__main__":
     features_df = features_df[fetaures_to_use]
     logger.info(f"Shape of the selected features {features_df.shape}")
 
+    df_cesium = pd.read_parquet(f"{constants.FEATURES_DATA_DIR}/cesium_final.parquet")
+    features_df = pd.concat([features_df, df_cesium], axis=1)
+
     train_X = features_df.iloc[0: len(train_df)]
     train_Y = train_df["loss"]
     test_X = features_df.iloc[len(train_df):]
 
     logger.info("Adding additional rows for loss=42")
     train_X_rare = train_X.loc[[96131, 131570, 212724]]
-    # train_X = train_X.append(
-    #     [train_X_rare, train_X_rare, train_X_rare], ignore_index=True
-    # )
     train_X = train_X.append(
-            [train_X_rare], ignore_index=True
+        [train_X_rare, train_X_rare, train_X_rare], ignore_index=True
     )
 
     train_Y_rare = train_Y.loc[[96131, 131570, 212724]]
-    # train_Y = train_Y.append(
-    #     [train_Y_rare, train_Y_rare, train_Y_rare], ignore_index=True
-    # )
     train_Y = train_Y.append(
-        [train_Y_rare], ignore_index=True
+        [train_Y_rare, train_Y_rare, train_Y_rare], ignore_index=True
     )
 
     logger.info(
@@ -130,6 +127,8 @@ if __name__ == "__main__":
 
     predictors = list(train_X.columns)
     sk = StratifiedKFold(n_splits=N_SPLITS, shuffle=True)
+
+    logger.info(f"List of predictors {predictors}")
 
     common.update_tracking(RUN_ID, "no_of_features", len(predictors), is_integer=True)
     common.update_tracking(RUN_ID, "cv_method", "StratifiedKFold")

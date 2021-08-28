@@ -8,7 +8,12 @@ import xgboost as xgb
 from catboost import CatBoost, Pool
 from IPython.display import display
 from sklearn import metrics
-from sklearn.metrics import make_scorer, roc_auc_score, mean_squared_error, f1_score
+from sklearn.metrics import (
+    make_scorer,
+    roc_auc_score,
+    mean_squared_error,
+    f1_score,
+)
 
 import src.common.com_util as util
 
@@ -24,7 +29,7 @@ __all__ = [
     "lgb_train_perm_importance_on_cv",
     "evaluate_macroF1_xgb",
     "evaluate_macroF1_lgb",
-    "_calculate_perf_metric"
+    "_calculate_perf_metric",
 ]
 
 
@@ -88,6 +93,14 @@ def rmsle(y, y_hat):
     return np.sqrt(np.mean(np.power(np.log1p(y_hat) - np.log1p(y), 2)))
 
 
+def precision_weighted(y, y_hat):
+    return metrics.precision_score(y_true=y, y_pred=y_hat, average="weighted")
+
+
+def recall_weighted(y, y_hat):
+    return metrics.recall_score(y_true=y, y_pred=y_hat, average="weighted")
+
+
 def _calculate_perf_metric(metric_name, y, y_hat):
     """Returns the performance metrics
 
@@ -96,24 +109,26 @@ def _calculate_perf_metric(metric_name, y, y_hat):
            y_hat: predicted value
 
        Returns:
-           RMSLE computed
+           Metrics computed
     """
-    score = None
     if metric_name == "rmse":
-        score = rmse(y, y_hat)
+        return rmse(y, y_hat)
     elif metric_name == "rmsle":
-        score = rmsle(y, y_hat)
+        return rmsle(y, y_hat)
     elif metric_name == "roc_auc":
-        score = roc_auc(y, y_hat)
+        return roc_auc(y, y_hat)
     elif metric_name == "log_loss":
-        score = log_loss(y, y_hat)
+        return log_loss(y, y_hat)
     elif metric_name == "f1_score_weighted":
-        score = f1_score_weighted(y, y_hat)
+        return f1_score_weighted(y, y_hat)
+    elif metric_name == "precision_weighted":
+        return precision_weighted(y, y_hat)
+    elif metric_name == "recall_weighted":
+        return recall_weighted(y, y_hat)
     else:
         raise ValueError(
             "Invalid value for metric_name. Only rmse, rmsle, roc_auc, log_loss allowed"
         )
-    return score
 
 
 def _get_x_y_from_data(logger, df, predictors, target):
@@ -760,7 +775,7 @@ def xgb_train_validate_on_cv(
     verbose_eval=100,
     is_test=False,
     log_target=False,
-    feval=None
+    feval=None,
 ):
     """Train a XGBoost model, validate using cross validation. If `test_X` has
     a valid value, creates a new model with number of best iteration found during
@@ -813,7 +828,7 @@ def xgb_train_validate_on_cv(
                 early_stopping_rounds=early_stopping_rounds,
                 params=params,
                 verbose_eval=verbose_eval,
-                feval=feval
+                feval=feval,
             )
         else:
             model = xgb.train(
@@ -921,7 +936,7 @@ def lgb_train_validate_on_cv(
     verbose_eval=100,
     is_test=False,
     log_target=False,
-    feval=None
+    feval=None,
 ):
     """Train a LightGBM model, validate using cross validation. If `test_X` has
     a valid value, creates a new model with number of best iteration found during
@@ -976,7 +991,7 @@ def lgb_train_validate_on_cv(
                 num_boost_round=n_estimators,
                 feature_name=features,
                 categorical_feature=cat_features,
-                feval=feval
+                feval=feval,
             )
         else:
             model = lgb.train(
