@@ -30,6 +30,7 @@ __all__ = [
     "evaluate_macroF1_xgb",
     "evaluate_macroF1_lgb",
     "_calculate_perf_metric",
+    "f1_score_weighted"
 ]
 
 
@@ -1128,11 +1129,14 @@ def lgb_train_perm_importance_on_cv(
     train_Y,
     kf,
     features,
+    seed,
+    score_function,
     params={},
     early_stopping_rounds=100,
     cat_features="auto",
     verbose_eval=100,
     display_imp=False,
+    feval=None,
 ):
     """Train a LightGBM model and computes permutation importance
     across multiple folds of CV
@@ -1154,22 +1158,34 @@ def lgb_train_perm_importance_on_cv(
 
         model = lgb.LGBMClassifier(**params)
 
-        model.fit(
-            X_train,
-            y_train,
-            eval_set=[(X_train, y_train), (X_validation, y_validation)],
-            verbose=verbose_eval,
-            early_stopping_rounds=early_stopping_rounds,
-            feature_name=features,
-            categorical_feature=cat_features,
-        )
+        if feval:
+            model.fit(
+                X_train,
+                y_train,
+                eval_set=[(X_train, y_train), (X_validation, y_validation)],
+                verbose=verbose_eval,
+                early_stopping_rounds=early_stopping_rounds,
+                feature_name=features,
+                categorical_feature=cat_features,
+                feval=feval
+            )
+        else:
+            model.fit(
+                X_train,
+                y_train,
+                eval_set=[(X_train, y_train), (X_validation, y_validation)],
+                verbose=verbose_eval,
+                early_stopping_rounds=early_stopping_rounds,
+                feature_name=features,
+                categorical_feature=cat_features,
+            )
 
         del X_train, y_train, train_index, validation_index
         gc.collect()
 
         # calculate permitation importance for the classifier
         perm = eli5.sklearn.PermutationImportance(
-            model, scoring=make_scorer(score_func=roc_auc_score), random_state=1
+            model, scoring=make_scorer(score_func=score_function), random_state=seed
         ).fit(X_validation, y_validation)
 
         if display_imp:

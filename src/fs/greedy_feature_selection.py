@@ -53,7 +53,7 @@ class GreedyFeatureSelection:
         BOOSTING_TYPE = "gbdt"
         VERBOSE = 100
         N_THREADS = 8
-        NUM_LEAVES = 31w
+        NUM_LEAVES = 31
         MAX_DEPTH = -1
         N_ESTIMATORS = 1000
         LEARNING_RATE = 0.1

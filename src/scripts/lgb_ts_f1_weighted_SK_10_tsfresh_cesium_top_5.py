@@ -1,5 +1,5 @@
 """
-LGB ts f1-weighted SKFold 10 tsfresh & cesium all features
+LGB ts f1-weighted SKFold 10 tsfresh & cesium top 5 features
 """
 
 import numpy as np
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     MODEL_NAME = os.path.basename(__file__).split(".")[0]
 
     SEED = 42
-    EXP_DETAILS = "LGB ts f1-weighted SKFold 10 tsfresh & cesium all features"
+    EXP_DETAILS = "LGB ts f1-weighted SKFold 10 tsfresh & cesium top 5 features"
     IS_TEST = False
     PLOT_FEATURE_IMPORTANCE = False
 
