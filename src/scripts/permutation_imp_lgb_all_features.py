@@ -7,6 +7,7 @@ from timeit import default_timer as timer
 from datetime import datetime
 
 import pandas as pd
+from sklearn import metrics
 from sklearn.model_selection import StratifiedKFold
 
 import src.common as common
@@ -57,6 +58,7 @@ lgb_params = {
     "max_bin": 255,
     "metric": METRIC,
     "verbose": -1,
+    "n_estimators": N_ESTIMATORS
 }
 
 LOGGER_NAME = 'main'
@@ -81,11 +83,17 @@ logger.info(f"Shape of the features {features_df.shape}")
 df_cesium = pd.read_parquet(f"{constants.FEATURES_DATA_DIR}/cesium_final.parquet")
 features_df = pd.concat([features_df, df_cesium], axis=1)
 
+# fetaures_to_use = [
+#     "loan__agg_linear_trend__attr_stderr__chunk_len_10__f_agg_mean",
+# ]
+# features_df = features_df[fetaures_to_use]
+# logger.info(f"Shape of the selected features {features_df.shape}")
+
 train_X = features_df.iloc[0: len(train_df)]
 train_Y = train_df["loss"]
-test_X = features_df.iloc[len(train_df):]
+# test_X = features_df.iloc[len(train_df):]
 
-logger.info(f"Shape of train_X: {train_X.shape}, train_Y: {train_Y.shape}, test_X: {test_X.shape}")
+logger.info(f"Shape of train_X: {train_X.shape}, train_Y: {train_Y.shape}")
 
 predictors = list(train_X.columns)
 logger.info(f"List of predictors {predictors}")
@@ -100,13 +108,12 @@ permu_imp_df, top_imp_df = model.lgb_train_perm_importance_on_cv(
     kf=sk,
     features=predictors,
     seed=SEED,
-    score_function=model.f1_score_weighted,
     params=lgb_params,
     early_stopping_rounds=EARLY_STOPPING_ROUNDS,
     cat_features=[],
     verbose_eval=100,
     display_imp=False,
-    feval=model.evaluate_macroF1_lgb
+    feval=model.evaluate_macroF1_lgb_sklearn_api
 )
 
 

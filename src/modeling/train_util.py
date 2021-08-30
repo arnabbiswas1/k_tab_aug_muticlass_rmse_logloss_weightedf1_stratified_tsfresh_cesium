@@ -30,7 +30,9 @@ __all__ = [
     "evaluate_macroF1_xgb",
     "evaluate_macroF1_lgb",
     "_calculate_perf_metric",
-    "f1_score_weighted"
+    "f1_score_weighted",
+    "evaluate_macroF1_lgb_sklearn_api",
+    "_get_X_Y_from_CV"
 ]
 
 
@@ -46,6 +48,22 @@ def evaluate_macroF1_lgb(y_hat, data):
     https://stackoverflow.com/questions/51139150/how-to-write-custom-f1-score-metric-in-light-gbm-python-in-multiclass-classifica
     """
     y = data.get_label()
+    y_hat = y_hat.reshape(-1, len(np.unique(y))).argmax(axis=1)
+    f1 = f1_score(y_true=y, y_pred=y_hat, average="weighted")
+    return ("weightedF1", f1, True)
+
+
+def evaluate_macroF1_lgb_sklearn_api(y, y_hat):
+    """
+    Custom F1 Score to be used for multiclass classification using lightgbm.
+    This function should be passed as a value to the parameter eval_metric for 
+    the LGBM sklearn API.
+
+    weighted average takes care of imbalance
+
+    https://github.com/Microsoft/LightGBM/issues/1453
+
+    """
     y_hat = y_hat.reshape(-1, len(np.unique(y))).argmax(axis=1)
     f1 = f1_score(y_true=y, y_pred=y_hat, average="weighted")
     return ("weightedF1", f1, True)
@@ -1130,7 +1148,6 @@ def lgb_train_perm_importance_on_cv(
     kf,
     features,
     seed,
-    score_function,
     params={},
     early_stopping_rounds=100,
     cat_features="auto",
@@ -1167,7 +1184,9 @@ def lgb_train_perm_importance_on_cv(
                 early_stopping_rounds=early_stopping_rounds,
                 feature_name=features,
                 categorical_feature=cat_features,
-                feval=feval
+                # For the train API, name of the parameter
+                # is feval. For sklearn api, it is eval_metric
+                eval_metric=feval,
             )
         else:
             model.fit(
@@ -1185,8 +1204,10 @@ def lgb_train_perm_importance_on_cv(
 
         # calculate permitation importance for the classifier
         perm = eli5.sklearn.PermutationImportance(
-            model, scoring=make_scorer(score_func=score_function), random_state=seed
-        ).fit(X_validation, y_validation)
+            model,
+            scoring=make_scorer(score_func=metrics.f1_score, average="weighted"),
+            random_state=seed,
+        ).fit(X_validation, y_validation, num_iteration=model.best_iteration_)
 
         if display_imp:
             display(eli5.show_weights(perm, feature_names=features, top=None))

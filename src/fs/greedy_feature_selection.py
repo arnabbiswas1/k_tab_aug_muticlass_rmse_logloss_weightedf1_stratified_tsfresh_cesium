@@ -20,9 +20,7 @@ from src.modeling import _calculate_perf_metric as calculate_metric
 from src.modeling import evaluate_macroF1_lgb
 
 
-__all__ = [
-    "GreedyFeatureSelection"
-]
+__all__ = ["GreedyFeatureSelection"]
 
 
 class GreedyFeatureSelection:
@@ -98,7 +96,7 @@ class GreedyFeatureSelection:
                 num_boost_round=N_ESTIMATORS,
                 feature_name=features,
                 # categorical_feature=[],
-                feval=evaluate_macroF1_lgb
+                feval=evaluate_macroF1_lgb,
             )
 
             del lgb_train, lgb_eval, train_index, X_train, y_train
@@ -202,125 +200,126 @@ if __name__ == "__main__":
     )
 
     logger.info(f"Shape of the features {features_df.shape}")
-    fetaures_to_use = [
-        "loan__agg_linear_trend__attr_stderr__chunk_len_10__f_agg_mean",
+    ts_fetaures_to_use = [
         "loan__change_quantiles__f_agg_mean__isabs_False__qh_06__ql_02",
-        "loan__fft_coefficient__attr_real__coeff_27",
-        "loan__cwt_coefficients__coeff_8__w_2__widths_251020",
-        "loan__fft_coefficient__attr_angle__coeff_27",
-        "loan__ar_coefficient__coeff_10__k_10",
-        "loan__fft_coefficient__attr_imag__coeff_46",
-        "loan__fft_coefficient__attr_imag__coeff_12",
-        "loan__skewness",
-        "loan__agg_linear_trend__attr_stderr__chunk_len_5__f_agg_mean",
-        "loan__fft_coefficient__attr_abs__coeff_27",
-        "loan__fft_coefficient__attr_abs__coeff_46",
-        "loan__autocorrelation__lag_1",
-        "loan__fft_coefficient__attr_angle__coeff_12",
-        "loan__cwt_coefficients__coeff_7__w_2__widths_251020",
-        "loan__ar_coefficient__coeff_0__k_10",
-        "loan__cwt_coefficients__coeff_9__w_2__widths_251020",
-        "loan__autocorrelation__lag_2",
-        "loan__fft_coefficient__attr_abs__coeff_12",
-        "loan__fft_coefficient__attr_imag__coeff_27",
-        "loan__change_quantiles__f_agg_mean__isabs_True__qh_10__ql_06",
+        "loan__fft_coefficient__attr_imag__coeff_7",
+        "loan__agg_linear_trend__attr_stderr__chunk_len_10__f_agg_mean",
         "loan__cwt_coefficients__coeff_12__w_2__widths_251020",
-        "loan__autocorrelation__lag_3",
-        "loan__autocorrelation__lag_4",
+        "loan__fft_coefficient__attr_abs__coeff_7",
+        "loan__fft_coefficient__attr_imag__coeff_46",
+        "loan__agg_linear_trend__attr_intercept__chunk_len_50__f_agg_mean",
+        "loan__cwt_coefficients__coeff_13__w_2__widths_251020",
+        "loan__skewness",
+        "loan__fft_coefficient__attr_imag__coeff_25",
+        "loan__fft_coefficient__attr_real__coeff_27",
         "loan__fft_coefficient__attr_angle__coeff_46",
-        "loan__kurtosis",
+        "loan__fft_coefficient__attr_real__coeff_26",
+        "loan__change_quantiles__f_agg_var__isabs_True__qh_06__ql_04",
+        "loan__fft_coefficient__attr_imag__coeff_35",
+        "loan__fft_coefficient__attr_real__coeff_44",
+        "loan__cwt_coefficients__coeff_5__w_2__widths_251020",
+        "loan__fft_coefficient__attr_angle__coeff_7",
+        "loan__autocorrelation__lag_1",
+        "loan__fft_coefficient__attr_angle__coeff_43",
+        "loan__fft_coefficient__attr_angle__coeff_25",
+        "loan__fft_coefficient__attr_angle__coeff_35",
+        "loan__fft_coefficient__attr_angle__coeff_27",
+        "loan__fft_coefficient__attr_abs__coeff_46",
+        "loan__fft_coefficient__attr_abs__coeff_26",
+        "loan__agg_linear_trend__attr_intercept__chunk_len_10__f_agg_mean",
+        "loan__fft_coefficient__attr_angle__coeff_44",
+        "loan__cwt_coefficients__coeff_14__w_2__widths_251020",
+        "loan__fft_coefficient__attr_abs__coeff_25",
+        "loan__autocorrelation__lag_2",
+        "loan__linear_trend__attr_intercept",
+        "loan__agg_linear_trend__attr_stderr__chunk_len_5__f_agg_mean",
+        "loan__agg_linear_trend__attr_intercept__chunk_len_5__f_agg_mean",
+        "loan__autocorrelation__lag_3",
+        "loan__cwt_coefficients__coeff_11__w_2__widths_251020",
+        "loan__fft_coefficient__attr_abs__coeff_35",
+        "loan__fft_coefficient__attr_imag__coeff_43",
+        "loan__fft_coefficient__attr_real__coeff_43",
+        "loan__autocorrelation__lag_4",
+        "loan__fft_coefficient__attr_abs__coeff_9",
+        "loan__change_quantiles__f_agg_mean__isabs_False__qh_06__ql_04",
+        "loan__agg_linear_trend__attr_slope__chunk_len_50__f_agg_mean",
+        "loan__fft_coefficient__attr_real__coeff_46",
+        "loan__fft_coefficient__attr_abs__coeff_27",
+        "loan__cwt_coefficients__coeff_4__w_2__widths_251020",
+        "loan__fft_coefficient__attr_abs__coeff_0",
+        "loan__fft_coefficient__attr_real__coeff_25",
+        "loan__fft_coefficient__attr_real__coeff_7",
+        "loan__fft_coefficient__attr_real__coeff_35",
+        "loan__cwt_coefficients__coeff_1__w_2__widths_251020",
+        "loan__cwt_coefficients__coeff_8__w_2__widths_251020",
+        "loan__change_quantiles__f_agg_var__isabs_False__qh_06__ql_04",
         "loan__autocorrelation__lag_5",
+        "loan__fft_coefficient__attr_abs__coeff_44",
+        "loan__change_quantiles__f_agg_mean__isabs_False__qh_10__ql_06",
+        "loan__cwt_coefficients__coeff_6__w_2__widths_251020",
+        "loan__fft_coefficient__attr_angle__coeff_26",
+        "loan__autocorrelation__lag_6",
+        "loan__fft_coefficient__attr_real__coeff_9",
+        "loan__autocorrelation__lag_7",
+        "loan__autocorrelation__lag_8",
+        "loan__autocorrelation__lag_9",
+        "loan__agg_autocorrelation__f_agg_var__maxlag_40",
+        "loan__change_quantiles__f_agg_mean__isabs_False__qh_08__ql_02",
+        "loan__agg_linear_trend__attr_stderr__chunk_len_5__f_agg_max",
+        "loan__agg_autocorrelation__f_agg_median__maxlag_40",
+        "loan__change_quantiles__f_agg_mean__isabs_False__qh_08__ql_00",
+        "loan__agg_autocorrelation__f_agg_mean__maxlag_40",
+        "loan__change_quantiles__f_agg_mean__isabs_False__qh_02__ql_00",
+        "loan__change_quantiles__f_agg_mean__isabs_False__qh_04__ql_00",
+        "loan__cwt_coefficients__coeff_9__w_2__widths_251020",
+        "loan__ar_coefficient__coeff_0__k_10",
+        "loan__cwt_coefficients__coeff_0__w_2__widths_251020",
         "loan__change_quantiles__f_agg_mean__isabs_False__qh_04__ql_02",
         "loan__change_quantiles__f_agg_mean__isabs_False__qh_06__ql_00",
-        "loan__change_quantiles__f_agg_mean__isabs_False__qh_06__ql_04",
-        "loan__autocorrelation__lag_6",
         "loan__agg_linear_trend__attr_rvalue__chunk_len_10__f_agg_mean",
-        "loan__change_quantiles__f_agg_mean__isabs_False__qh_08__ql_02",
-        "loan__autocorrelation__lag_7",
+        "loan__change_quantiles__f_agg_mean__isabs_True__qh_06__ql_04",
+        "loan__fft_coefficient__attr_imag__coeff_27",
+        "loan__fft_coefficient__attr_imag__coeff_44",
+        "loan__abs_energy",
         "loan__change_quantiles__f_agg_mean__isabs_False__qh_10__ql_04",
-        "loan__autocorrelation__lag_8",
-        "loan__agg_autocorrelation__f_agg_var__maxlag_40",
-        "loan__change_quantiles__f_agg_mean__isabs_False__qh_02__ql_00",
-        "loan__cwt_coefficients__coeff_11__w_2__widths_251020",
-        "loan__change_quantiles__f_agg_var__isabs_False__qh_10__ql_06",
-        "loan__agg_autocorrelation__f_agg_mean__maxlag_40",
-        "loan__fft_coefficient__attr_real__coeff_13",
-        "loan__autocorrelation__lag_9",
-        "loan__agg_autocorrelation__f_agg_median__maxlag_40",
-        "loan__fft_coefficient__attr_real__coeff_12",
-        "loan__change_quantiles__f_agg_mean__isabs_False__qh_04__ql_00",
-        "loan__cwt_coefficients__coeff_4__w_2__widths_251020",
-        "loan__fft_coefficient__attr_real__coeff_46",
-        "loan__fft_coefficient__attr_imag__coeff_28",
-        "loan__change_quantiles__f_agg_mean__isabs_False__qh_08__ql_04",
-        "loan__fft_coefficient__attr_real__coeff_31",
-        "loan__fft_coefficient__attr_real__coeff_9",
+        "loan__kurtosis",
         "loan__change_quantiles__f_agg_var__isabs_False__qh_02__ql_00",
-        "loan__fft_coefficient__attr_abs__coeff_9",
-        "loan__change_quantiles__f_agg_mean__isabs_False__qh_08__ql_00",
-        "loan__agg_linear_trend__attr_stderr__chunk_len_5__f_agg_max",
-        "loan__cwt_coefficients__coeff_3__w_2__widths_251020",
-        "loan__change_quantiles__f_agg_mean__isabs_True__qh_04__ql_02",
-        "loan__fft_coefficient__attr_angle__coeff_29",
-        "loan__cwt_coefficients__coeff_5__w_2__widths_251020",
-        "loan__fft_coefficient__attr_imag__coeff_31",
-        "loan__fft_coefficient__attr_imag__coeff_37",
-        "loan__fft_coefficient__attr_abs__coeff_5",
-        "loan__change_quantiles__f_agg_mean__isabs_True__qh_02__ql_00",
-        "loan__cwt_coefficients__coeff_6__w_2__widths_251020",
-        "loan__cwt_coefficients__coeff_13__w_2__widths_251020",
+        "loan__fft_coefficient__attr_imag__coeff_1",
         "loan__fft_coefficient__attr_abs__coeff_1",
-        "loan__fft_coefficient__attr_abs__coeff_31",
+        "loan__change_quantiles__f_agg_mean__isabs_False__qh_08__ql_04",
+        "loan__linear_trend__attr_pvalue",
         "loan__change_quantiles__f_agg_mean__isabs_False__qh_10__ql_00",
-        "loan__fft_coefficient__attr_angle__coeff_13",
-        "loan__change_quantiles__f_agg_mean__isabs_False__qh_10__ql_08",
-        "loan__fft_coefficient__attr_angle__coeff_2",
-        "loan__change_quantiles__f_agg_var__isabs_False__qh_04__ql_00",
-        "loan__change_quantiles__f_agg_mean__isabs_False__qh_08__ql_06",
+        "loan__cwt_coefficients__coeff_3__w_2__widths_251020",
+        "loan__cwt_coefficients__coeff_10__w_2__widths_251020",
+        "loan__fft_coefficient__attr_abs__coeff_43",
+        "loan__fft_coefficient__attr_real__coeff_13",
         "loan__change_quantiles__f_agg_var__isabs_False__qh_06__ql_00",
-        "loan__change_quantiles__f_agg_mean__isabs_False__qh_10__ql_02",
-        "loan__fft_coefficient__attr_real__coeff_8",
-        "loan__change_quantiles__f_agg_var__isabs_True__qh_02__ql_00",
-        "loan__fft_coefficient__attr_real__coeff_11",
-        "loan__change_quantiles__f_agg_var__isabs_True__qh_10__ql_06",
-        "loan__fft_coefficient__attr_abs__coeff_30",
-        "loan__fft_coefficient__attr_abs__coeff_8",
-        "loan__change_quantiles__f_agg_var__isabs_True__qh_06__ql_02",
-        "loan__fft_coefficient__attr_abs__coeff_2",
+        "loan__change_quantiles__f_agg_mean__isabs_True__qh_02__ql_00",
+        "loan__change_quantiles__f_agg_var__isabs_False__qh_04__ql_00",
+        "loan__fft_coefficient__attr_imag__coeff_11",
+        "loan__fft_coefficient__attr_angle__coeff_8",
+        "loan__fft_coefficient__attr_imag__coeff_37",
         "loan__fft_coefficient__attr_imag__coeff_9",
-        "loan__fft_coefficient__attr_angle__coeff_5",
-        "loan__fft_coefficient__attr_abs__coeff_29",
-        "loan__approximate_entropy__m_2__r_01",
-        "loan__fft_coefficient__attr_angle__coeff_9",
-        "loan__fft_coefficient__attr_abs__coeff_39",
-        "loan__fft_coefficient__attr_real__coeff_26",
-        "loan__change_quantiles__f_agg_var__isabs_True__qh_10__ql_04",
-        "loan__change_quantiles__f_agg_mean__isabs_False__qh_10__ql_06",
-        "loan__fft_coefficient__attr_abs__coeff_19",
-        "loan__fft_coefficient__attr_abs__coeff_6",
-        "loan__change_quantiles__f_agg_var__isabs_True__qh_04__ql_00",
-        "loan__agg_linear_trend__attr_stderr__chunk_len_5__f_agg_min",
-        "loan__agg_linear_trend__attr_stderr__chunk_len_10__f_agg_min",
+        "loan__fft_coefficient__attr_imag__coeff_2",
         "loan__change_quantiles__f_agg_var__isabs_True__qh_06__ql_00",
-        "loan__fft_coefficient__attr_abs__coeff_32",
+        "loan__change_quantiles__f_agg_var__isabs_True__qh_08__ql_00",
+        "loan__change_quantiles__f_agg_var__isabs_True__qh_04__ql_00",
+        "loan__fft_coefficient__attr_real__coeff_37",
+        "loan__fft_coefficient__attr_imag__coeff_10",
+        "loan__change_quantiles__f_agg_mean__isabs_False__qh_10__ql_08",
+        "loan__change_quantiles__f_agg_mean__isabs_False__qh_08__ql_06",
+        "loan__fft_coefficient__attr_angle__coeff_13",
+        "loan__fft_coefficient__attr_angle__coeff_2",
     ]
-    features_df = features_df[fetaures_to_use]
+    features_df = features_df[ts_fetaures_to_use]
     logger.info(f"Shape of the selected features {features_df.shape}")
 
-    train_X = features_df.iloc[0: len(train_df)]
+    df_cesium = pd.read_parquet(f"{constants.FEATURES_DATA_DIR}/cesium_final.parquet")
+    features_df = pd.concat([features_df, df_cesium], axis=1)
+
+    train_X = features_df.iloc[0 : len(train_df)]
     train_Y = train_df["loss"]
-    test_X = features_df.iloc[len(train_df):]
-
-    logger.info("Adding additional rows for loss=42")
-    train_X_rare = train_X.loc[[96131, 131570, 212724]]
-    train_X = train_X.append(
-        [train_X_rare, train_X_rare, train_X_rare], ignore_index=True
-    )
-
-    train_Y_rare = train_Y.loc[[96131, 131570, 212724]]
-    train_Y = train_Y.append(
-        [train_Y_rare, train_Y_rare, train_Y_rare], ignore_index=True
-    )
+    test_X = features_df.iloc[len(train_df) :]
 
     logger.info(
         f"Shape of train_X : {train_X.shape}, test_X: {test_X.shape}, train_Y: {train_Y.shape}"

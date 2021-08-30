@@ -1,5 +1,5 @@
 """
-lgb, sk10, top 2 from greedy selection
+lgb, sk10, top 2 from greedy selection (run 2)
 """
 
 import numpy as np
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     MODEL_NAME = os.path.basename(__file__).split(".")[0]
 
     SEED = 42
-    EXP_DETAILS = "lgb, sk10, top 2 from greedy selection"
+    EXP_DETAILS = "lgb, sk10, top 2 from greedy selection (run 2)"
     IS_TEST = False
     PLOT_FEATURE_IMPORTANCE = False
 
@@ -79,6 +79,7 @@ if __name__ == "__main__":
     common.update_tracking(RUN_ID, "learning_rate", LEARNING_RATE)
     common.update_tracking(RUN_ID, "num_leaves", NUM_LEAVES)
     common.update_tracking(RUN_ID, "early_stopping_rounds", EARLY_STOPPING_ROUNDS)
+    common.update_tracking(RUN_ID, "seed", SEED)
 
     train_df, test_df, sample_submission_df = process_data.read_processed_data(
         logger,
@@ -94,15 +95,15 @@ if __name__ == "__main__":
 
     logger.info(f"Shape of the features {features_df.shape}")
     fetaures_to_use = [
-        'loan__agg_linear_trend__attr_stderr__chunk_len_10__f_agg_mean',
-        'loan__change_quantiles__f_agg_var__isabs_True__qh_06__ql_00'
+        "loan__agg_linear_trend__attr_stderr__chunk_len_5__f_agg_mean",
+        "loan__cwt_coefficients__coeff_6__w_2__widths_251020",
     ]
     features_df = features_df[fetaures_to_use]
     logger.info(f"Shape of the selected features {features_df.shape}")
 
-    train_X = features_df.iloc[0: len(train_df)]
+    train_X = features_df.iloc[0 : len(train_df)]
     train_Y = train_df["loss"]
-    test_X = features_df.iloc[len(train_df):]
+    test_X = features_df.iloc[len(train_df) :]
 
     logger.info("Adding additional rows for loss=42")
     train_X_rare = train_X.loc[[96131, 131570, 212724]]
@@ -171,8 +172,13 @@ if __name__ == "__main__":
     logger.info(f"RMSE score {rmse_score}")
     logger.info(f"Precision {precision_score}")
     logger.info(f"Recall {recall_score}")
-    
-    util.update_tracking(run_id=RUN_ID, key="RMSE", value=rmse_score, is_integer=False)
+
+    util.update_tracking(
+        run_id=RUN_ID,
+        key="RMSE",
+        value=rmse_score,
+        is_integer=False
+    )
 
     util.update_tracking(
         run_id=RUN_ID,

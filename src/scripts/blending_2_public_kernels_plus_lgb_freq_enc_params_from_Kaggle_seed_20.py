@@ -21,21 +21,24 @@ if __name__ == "__main__":
         sample_submission=True,
     )
 
-    # File with public score 7.84995
+    # File with public score 7.84988
     # https://www.kaggle.com/pavfedotov/blending-tool-tps-aug-2021
     df_sub_ext = pd.read_csv(f"{constants.PUB_SUBMISSION_DIR}/0.part")
+
+    # https://www.kaggle.com/vaby667/84996to-improve-your-ranking
+    # PL : 0.84996
+    df_2 = pd.read_csv(
+        f"{constants.PUB_SUBMISSION_DIR}/file1_7.84996_file2_7.84996_blend.csv"
+    )
 
     # LGB Benchamrk with StratifiedKFold (10) with frequency encoding params from Kaggle, seed 20 (0.9, 0.1)
     df_lgb_log_loss_top_10 = pd.read_csv(
         f"{constants.SUBMISSION_DIR}/sub_lgb_SKF_freq_params_f_kaggle_0817_1247_7.84284.csv"
     )
 
-    logger.info(
-        "Blending LGB Benchamrk with StratifiedKFold (10) with frequency encoding params from Kaggle, seed 20 (0.99, 0.01)"
-    )
     # Giving more importnace to external submission
     sample_submission_df.loss = (
-        0.99 * df_sub_ext.loss + 0.01 * df_lgb_log_loss_top_10.loss
+        0.5 * df_sub_ext.loss + 0.49 * df_2.loss + 0.01 * df_lgb_log_loss_top_10.loss
     ).values
 
     file_name = f"sub_{MODEL_NAME}_{RUN_ID}.csv"
