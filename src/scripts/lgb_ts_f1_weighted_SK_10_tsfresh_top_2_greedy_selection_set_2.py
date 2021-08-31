@@ -43,10 +43,10 @@ if __name__ == "__main__":
     BOOSTING_TYPE = "gbdt"
     VERBOSE = 100
     N_THREADS = 8
-    NUM_LEAVES = 31
-    MAX_DEPTH = -1
+    NUM_LEAVES = 24
+    MAX_DEPTH = 8
     N_ESTIMATORS = 1000
-    LEARNING_RATE = 0.1
+    LEARNING_RATE = 0.007777
     EARLY_STOPPING_ROUNDS = 100
 
     lgb_params = {
@@ -59,9 +59,11 @@ if __name__ == "__main__":
         "n_jobs": N_THREADS,
         "seed": SEED,
         "max_depth": MAX_DEPTH,
-        "max_bin": 255,
         "metric": METRIC,
         "verbose": -1,
+        "min_child_samples": 595,
+        "bagging_fraction": 0.9678937359424064,
+        "feature_fraction": 0.7452210940353119,
     }
 
     LOGGER_NAME = "sub_1"
@@ -173,12 +175,7 @@ if __name__ == "__main__":
     logger.info(f"Precision {precision_score}")
     logger.info(f"Recall {recall_score}")
 
-    util.update_tracking(
-        run_id=RUN_ID,
-        key="RMSE",
-        value=rmse_score,
-        is_integer=False
-    )
+    util.update_tracking(run_id=RUN_ID, key="RMSE", value=rmse_score, is_integer=False)
 
     util.update_tracking(
         run_id=RUN_ID,
